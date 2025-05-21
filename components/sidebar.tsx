@@ -2,18 +2,20 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, Home, Upload, Users, LogOut, Menu, X } from "lucide-react"
+import { BookOpen, Home, Upload, Users, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
+import { useSidebar } from "@/hooks/use-sidebar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
   const { user, signOut } = useAuth()
+  const { state, toggle, isOpen, setIsOpen } = useSidebar()
 
   const isAdmin = user?.role === "admin"
+  const isCollapsed = state === "collapsed"
 
   const routes = [
     {
@@ -48,6 +50,7 @@ export function Sidebar() {
 
   return (
     <>
+      {/* Botón de menú móvil */}
       <Button
         variant="outline"
         size="icon"
@@ -57,46 +60,97 @@ export function Sidebar() {
         {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         <span className="sr-only">Toggle Menu</span>
       </Button>
+
+      {/* Overlay para móvil */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-background border-r transform transition-transform duration-200 ease-in-out md:translate-x-0",
-          isOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-40 bg-background border-r transition-all duration-300 ease-in-out",
+          isCollapsed ? "w-[70px]" : "w-64",
+          isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="p-6">
-            <h2 className="text-2xl font-bold">LDH Rituales</h2>
-            <p className="text-sm text-muted-foreground">Biblioteca Digital</p>
-          </div>
-          <nav className="flex-1 p-4 space-y-2">
-            {routes.map((route) => (
-              <Link
-                key={route.href}
-                href={route.href}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
-                  route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                )}
-              >
-                <route.icon className="h-4 w-4" />
-                {route.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="p-4 border-t">
+          <div className={cn("p-4 flex items-center justify-between", isCollapsed && "justify-center")}>
+            {!isCollapsed && (
+              <div>
+                <h2 className="text-xl font-bold">LDH Rituales</h2>
+                <p className="text-xs text-muted-foreground">Biblioteca Digital</p>
+              </div>
+            )}
+            {isCollapsed && <BookOpen className="h-6 w-6" />}
+
+            {/* Botón para colapsar/expandir (solo en desktop) */}
             <Button
               variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                signOut()
-                setIsOpen(false)
-              }}
+              size="icon"
+              className="hidden md:flex"
+              onClick={toggle}
+              title={isCollapsed ? "Expandir" : "Colapsar"}
             >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </Button>
           </div>
+
+          <TooltipProvider delayDuration={0}>
+            <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+              {routes.map((route) => (
+                <Tooltip key={route.href}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href={route.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
+                        route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                        isCollapsed && "justify-center px-2",
+                      )}
+                    >
+                      <route.icon className="h-5 w-5 flex-shrink-0" />
+                      {!isCollapsed && <span>{route.label}</span>}
+                    </Link>
+                  </TooltipTrigger>
+                  {isCollapsed && <TooltipContent side="right">{route.label}</TooltipContent>}
+                </Tooltip>
+              ))}
+            </nav>
+          </TooltipProvider>
+
+          <div className="p-2 border-t">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn("w-full justify-start", isCollapsed && "justify-center px-2")}
+                  onClick={() => {
+                    signOut()
+                    setIsOpen(false)
+                  }}
+                >
+                  <LogOut className="h-5 w-5 flex-shrink-0" />
+                  {!isCollapsed && <span className="ml-2">Cerrar Sesión</span>}
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Cerrar Sesión</TooltipContent>}
+            </Tooltip>
+          </div>
+
+          {/* Información del usuario */}
+          {user && !isCollapsed && (
+            <div className="p-4 border-t">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground">Grado: {user.degree}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

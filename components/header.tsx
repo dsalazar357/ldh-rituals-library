@@ -1,20 +1,38 @@
 "use client"
 
-import { MoonIcon, SunIcon } from "lucide-react"
+import { MoonIcon, SunIcon, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/hooks/use-auth"
+import { useSidebar } from "@/hooks/use-sidebar"
+import { cn } from "@/lib/utils"
 
 export function Header() {
   const { setTheme } = useTheme()
   const { user } = useAuth()
+  const { state, setIsOpen } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 border-b bg-background h-16 flex items-center px-6">
-      <div className="ml-auto flex items-center gap-4">
+    <header
+      className={cn(
+        "fixed top-0 right-0 z-30 border-b bg-background h-16 flex items-center transition-all duration-300",
+        isCollapsed ? "left-[70px]" : "left-0 md:left-64",
+      )}
+    >
+      <div className="flex items-center px-4 md:hidden">
+        <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Abrir menú</span>
+        </Button>
+      </div>
+
+      <div className="flex-1" />
+
+      <div className="flex items-center gap-4 px-4">
         {user && (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground hidden md:inline-block">
             {user.name} | Grado: {user.degree}
           </span>
         )}
