@@ -2,17 +2,32 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Download, FileIcon } from "lucide-react"
+import { Eye, Download, FileIcon, Trash } from "lucide-react"
 import Link from "next/link"
 import { useRituals } from "@/hooks/use-rituals"
 import { useRitualsFilter } from "@/hooks/use-rituals-filter"
 import { useAuth } from "@/hooks/use-auth"
+import { useDeleteRitual } from "@/hooks/use-delete-ritual"
 import { formatDate } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { useState } from "react"
 
 export function RitualsList() {
-  const { rituals } = useRituals()
+  const { rituals, refetch } = useRituals()
   const { filters } = useRitualsFilter()
   const { user } = useAuth()
+  const { handleDelete, isDeleting } = useDeleteRitual()
+  const [ritualToDelete, setRitualToDelete] = useState<string | null>(null)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const isAdmin = user?.role === "admin"
 
   // Filtrar rituales por grado del usuario y filtros aplicados
   let filteredRituals = rituals.filter((ritual) => ritual.degree <= (user?.degree || 0))
@@ -57,6 +72,15 @@ export function RitualsList() {
     organizedRituals[key].push(ritual)
   })
 
+  const confirmDelete = async () => {
+    if (ritualToDelete) {
+      await handleDelete(ritualToDelete)
+      setRitualToDelete(null)
+      setIsDeleteDialogOpen(false)
+      refetch()
+    }
+  }
+
   return (
     <div className="space-y-6">
       {Object.keys(organizedRituals).length > 0 ? (
@@ -95,6 +119,20 @@ export function RitualsList() {
                         <Download className="h-4 w-4" />
                         <span className="sr-only">Descargar</span>
                       </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Eliminar"
+                          onClick={() => {
+                            setRitualToDelete(ritual.id)
+                            setIsDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash className="h-4 w-4 text-red-500" />
+                          <span className="sr-only">Eliminar</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -107,6 +145,33 @@ export function RitualsList() {
           <p className="text-muted-foreground">No se encontraron rituales con los filtros seleccionados.</p>
         </div>
       )}
+
+      {/* Diálogo de confirmación para eliminar */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar Ritual</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas eliminar este ritual? Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRitualToDelete(null)
+                setIsDeleteDialogOpen(false)
+              }}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

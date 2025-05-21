@@ -104,17 +104,19 @@ const mockRituals: Ritual[] = [
   },
 ]
 
+// Variable para almacenar los rituales (simulando una base de datos)
+const rituals = [...mockRituals]
+
 // Función para obtener todos los rituales
 export async function getRituals(): Promise<Ritual[]> {
   // Simulación de obtención de rituales
-  // En una implementación real, esto sería una llamada a la API
-  return mockRituals
+  return [...rituals]
 }
 
 // Función para obtener un ritual por ID
 export async function getRitualById(id: string): Promise<Ritual | null> {
   // Simulación de obtención de ritual por ID
-  const ritual = mockRituals.find((r) => r.id === id)
+  const ritual = rituals.find((r) => r.id === id)
 
   if (!ritual) {
     return null
@@ -151,8 +153,27 @@ export async function uploadRitual(ritualData: {
     createdAt: new Date().toISOString(),
   }
 
-  // En una implementación real, aquí se enviaría el ritual a la base de datos
+  // Añadir el nuevo ritual a la lista
+  rituals.push(newRitual)
+
   console.log("Ritual subido:", newRitual)
 
   return newRitual
+}
+
+// Función para eliminar un ritual
+export async function deleteRitual(id: string): Promise<boolean> {
+  // Verificar si el ritual existe
+  const ritualIndex = rituals.findIndex((r) => r.id === id)
+
+  if (ritualIndex === -1) {
+    return false
+  }
+
+  // Eliminar el ritual de la lista
+  rituals.splice(ritualIndex, 1)
+
+  console.log(`Ritual con ID ${id} eliminado`)
+
+  return true
 }

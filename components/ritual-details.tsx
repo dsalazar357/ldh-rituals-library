@@ -2,10 +2,22 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, FileIcon } from "lucide-react"
+import { Download, FileIcon, Trash } from "lucide-react"
 import { useRitual } from "@/hooks/use-ritual"
+import { useDeleteRitual } from "@/hooks/use-delete-ritual"
 import { formatDate } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/hooks/use-auth"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { useState } from "react"
 
 interface RitualDetailsProps {
   id: string
@@ -13,6 +25,11 @@ interface RitualDetailsProps {
 
 export function RitualDetails({ id }: RitualDetailsProps) {
   const { ritual, isLoading } = useRitual(id)
+  const { handleDelete, isDeleting } = useDeleteRitual()
+  const { user } = useAuth()
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const isAdmin = user?.role === "admin"
 
   if (isLoading) {
     return (
@@ -84,10 +101,46 @@ export function RitualDetails({ id }: RitualDetailsProps) {
           </div>
         </div>
 
-        <Button className="mt-6" onClick={() => window.open(ritual.fileUrl, "_blank")}>
-          <Download className="mr-2 h-4 w-4" />
-          Descargar Ritual
-        </Button>
+        <div className="flex flex-wrap gap-3 mt-6">
+          <Button onClick={() => window.open(ritual.fileUrl, "_blank")}>
+            <Download className="mr-2 h-4 w-4" />
+            Descargar Ritual
+          </Button>
+
+          {isAdmin && (
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash className="mr-2 h-4 w-4" />
+                  Eliminar Ritual
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Eliminar Ritual</DialogTitle>
+                  <DialogDescription>
+                    ¿Estás seguro de que deseas eliminar este ritual? Esta acción no se puede deshacer.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isDeleting}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      handleDelete(ritual.id)
+                      setIsDeleteDialogOpen(false)
+                    }}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "Eliminando..." : "Eliminar"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
