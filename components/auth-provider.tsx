@@ -24,8 +24,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Marcar como montado para evitar problemas de hidratación
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
+    if (!isMounted) return
+
     // Verificar si hay un usuario en localStorage
     try {
       const storedUser = localStorage.getItem("user")
@@ -37,21 +45,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [isMounted])
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && isMounted) {
       // Redirigir a login si no está autenticado
       const publicRoutes = ["/login", "/registro"]
       if (!user && !publicRoutes.includes(pathname)) {
         router.push("/login")
       }
     }
-  }, [user, isLoading, pathname, router])
+  }, [user, isLoading, pathname, router, isMounted])
 
   const signOut = () => {
+    if (!isMounted) return
+
     setUser(null)
-    localStorage.removeItem("user")
+    try {
+      localStorage.removeItem("user")
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error)
+    }
     router.push("/login")
   }
 

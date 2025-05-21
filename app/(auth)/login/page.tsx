@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,9 +16,17 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Marcar como montado para evitar problemas de hidratación
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isMounted) return
+
     setError("")
     setIsLoading(true)
 
@@ -58,7 +66,11 @@ export default function LoginPage() {
 
         // Guardar usuario en localStorage
         const { password, ...userInfo } = user
-        localStorage.setItem("user", JSON.stringify(userInfo))
+        try {
+          localStorage.setItem("user", JSON.stringify(userInfo))
+        } catch (error) {
+          console.error("Error al guardar usuario:", error)
+        }
 
         // Redirigir al dashboard
         router.push("/")

@@ -8,11 +8,18 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useEffect, useState } from "react"
 
 export function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const { state, toggle, isOpen, setIsOpen } = useSidebar()
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Marcar como montado para evitar problemas de hidratación
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const isAdmin = user?.role === "admin"
   const isCollapsed = state === "collapsed"
@@ -47,6 +54,10 @@ export function Sidebar() {
         ]
       : []),
   ]
+
+  if (!isMounted) {
+    return null // No renderizar nada hasta que el componente esté montado
+  }
 
   return (
     <>
@@ -99,47 +110,77 @@ export function Sidebar() {
             </Button>
           </div>
 
-          <TooltipProvider delayDuration={0}>
-            <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+            <TooltipProvider delayDuration={0}>
               {routes.map((route) => (
-                <Tooltip key={route.href}>
-                  <TooltipTrigger asChild>
+                <div key={route.href}>
+                  {isCollapsed ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={route.href}
+                          onClick={() => setIsOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
+                            route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                            isCollapsed && "justify-center px-2",
+                          )}
+                        >
+                          <route.icon className="h-5 w-5 flex-shrink-0" />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{route.label}</TooltipContent>
+                    </Tooltip>
+                  ) : (
                     <Link
                       href={route.href}
                       onClick={() => setIsOpen(false)}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
                         route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                        isCollapsed && "justify-center px-2",
                       )}
                     >
                       <route.icon className="h-5 w-5 flex-shrink-0" />
-                      {!isCollapsed && <span>{route.label}</span>}
+                      <span>{route.label}</span>
                     </Link>
-                  </TooltipTrigger>
-                  {isCollapsed && <TooltipContent side="right">{route.label}</TooltipContent>}
-                </Tooltip>
+                  )}
+                </div>
               ))}
-            </nav>
-          </TooltipProvider>
+            </TooltipProvider>
+          </nav>
 
           <div className="p-2 border-t">
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <TooltipProvider delayDuration={0}>
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-center px-2"
+                      onClick={() => {
+                        signOut()
+                        setIsOpen(false)
+                      }}
+                    >
+                      <LogOut className="h-5 w-5 flex-shrink-0" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Cerrar Sesión</TooltipContent>
+                </Tooltip>
+              ) : (
                 <Button
                   variant="ghost"
-                  className={cn("w-full justify-start", isCollapsed && "justify-center px-2")}
+                  className="w-full justify-start"
                   onClick={() => {
                     signOut()
                     setIsOpen(false)
                   }}
                 >
                   <LogOut className="h-5 w-5 flex-shrink-0" />
-                  {!isCollapsed && <span className="ml-2">Cerrar Sesión</span>}
+                  <span className="ml-2">Cerrar Sesión</span>
                 </Button>
-              </TooltipTrigger>
-              {isCollapsed && <TooltipContent side="right">Cerrar Sesión</TooltipContent>}
-            </Tooltip>
+              )}
+            </TooltipProvider>
           </div>
 
           {/* Información del usuario */}
