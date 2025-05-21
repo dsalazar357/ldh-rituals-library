@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUsers } from "@/hooks/use-users"
 import { useToast } from "@/hooks/use-toast"
 import { PencilIcon, PlusIcon, TrashIcon } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export function UsersTable() {
   const { users, addUser, updateUser, deleteUser } = useUsers()
@@ -34,6 +35,7 @@ export function UsersTable() {
     password: "",
     degree: "1",
     lodge: "",
+    isAdmin: false,
   })
 
   const handleAddUser = () => {
@@ -41,6 +43,7 @@ export function UsersTable() {
       addUser({
         ...formData,
         degree: Number.parseInt(formData.degree),
+        role: formData.isAdmin ? "admin" : "user",
       })
 
       toast({
@@ -55,6 +58,7 @@ export function UsersTable() {
         password: "",
         degree: "1",
         lodge: "",
+        isAdmin: false,
       })
     } catch (error) {
       toast({
@@ -72,6 +76,7 @@ export function UsersTable() {
       updateUser(selectedUser.id, {
         ...formData,
         degree: Number.parseInt(formData.degree),
+        role: formData.isAdmin ? "admin" : "user",
       })
 
       toast({
@@ -120,6 +125,7 @@ export function UsersTable() {
       password: "",
       degree: user.degree.toString(),
       lodge: user.lodge,
+      isAdmin: user.role === "admin",
     })
     setIsEditDialogOpen(true)
   }
@@ -181,7 +187,7 @@ export function UsersTable() {
                     <SelectItem value="1">Grado 1</SelectItem>
                     <SelectItem value="2">Grado 2</SelectItem>
                     <SelectItem value="3">Grado 3</SelectItem>
-                    <SelectItem value="33">Administrador</SelectItem>
+                    <SelectItem value="33">Grado 33</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -192,6 +198,14 @@ export function UsersTable() {
                   value={formData.lodge}
                   onChange={(e) => setFormData({ ...formData, lodge: e.target.value })}
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isAdmin"
+                  checked={formData.isAdmin}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isAdmin: checked === true })}
+                />
+                <Label htmlFor="isAdmin">Es Administrador</Label>
               </div>
             </div>
             <DialogFooter>
@@ -212,6 +226,7 @@ export function UsersTable() {
               <TableHead>Email</TableHead>
               <TableHead>Grado</TableHead>
               <TableHead>Taller</TableHead>
+              <TableHead>Rol</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -223,6 +238,7 @@ export function UsersTable() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.degree}</TableCell>
                   <TableCell>{user.lodge}</TableCell>
+                  <TableCell>{user.role === "admin" ? "Administrador" : "Usuario"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="icon" onClick={() => openEditDialog(user)}>
@@ -239,7 +255,7 @@ export function UsersTable() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
+                <TableCell colSpan={6} className="text-center py-4">
                   No hay usuarios registrados.
                 </TableCell>
               </TableRow>
@@ -292,7 +308,7 @@ export function UsersTable() {
                   <SelectItem value="1">Grado 1</SelectItem>
                   <SelectItem value="2">Grado 2</SelectItem>
                   <SelectItem value="3">Grado 3</SelectItem>
-                  <SelectItem value="33">Administrador</SelectItem>
+                  <SelectItem value="33">Grado 33</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -303,6 +319,14 @@ export function UsersTable() {
                 value={formData.lodge}
                 onChange={(e) => setFormData({ ...formData, lodge: e.target.value })}
               />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="edit-isAdmin"
+                checked={formData.isAdmin}
+                onCheckedChange={(checked) => setFormData({ ...formData, isAdmin: checked === true })}
+              />
+              <Label htmlFor="edit-isAdmin">Es Administrador</Label>
             </div>
           </div>
           <DialogFooter>

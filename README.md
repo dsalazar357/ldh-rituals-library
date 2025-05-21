@@ -1,4 +1,74 @@
-"use client"
+# Biblioteca de Rituales - Le Droit Humain
+
+Biblioteca digital de rituales masónicos de Le Droit Humain.
+
+## Configuración de Variables de Entorno
+
+Para ejecutar este proyecto, puedes configurar las siguientes variables de entorno:
+
+1. Crea un archivo `.env.local` en la raíz del proyecto
+2. Copia el contenido de `.env.example` a `.env.local`
+3. Completa los valores con tus propias credenciales
+
+\`\`\`bash
+# Configuración de la aplicación
+NEXT_PUBLIC_APP_NAME="Biblioteca de Rituales - Le Droit Humain"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Autenticación (para una implementación real)
+AUTH_SECRET="tu_clave_secreta_para_autenticacion"
+
+# Credenciales de administrador por defecto
+ADMIN_EMAIL="admin@ldh.org"
+ADMIN_PASSWORD="contraseña_segura_aqui"
+ADMIN_NAME="Administrador"
+
+# Credenciales de usuario de prueba
+TEST_USER_EMAIL="usuario@ldh.org"
+TEST_USER_PASSWORD="contraseña_usuario_aqui"
+TEST_USER_NAME="Usuario de Prueba"
+\`\`\`
+
+### Notas importantes:
+
+- Las variables que comienzan con `NEXT_PUBLIC_` estarán disponibles en el navegador
+- Las demás variables solo estarán disponibles en el servidor
+- Si no configuras estas variables, se usarán valores por defecto
+
+## Desarrollo
+
+\`\`\`bash
+# Instalar dependencias
+npm install
+
+# Ejecutar en modo desarrollo
+npm run dev
+\`\`\`
+
+## Despliegue
+
+El proyecto está configurado para desplegarse en Vercel. Asegúrate de configurar las variables de entorno en el panel de control de Vercel.
+
+\`\`\`bash
+# Desplegar en Vercel
+vercel
+\`\`\`
+
+## Seguridad
+
+En una implementación de producción, deberías:
+
+1. Nunca exponer credenciales en el código fuente
+2. Usar un sistema de autenticación seguro (como NextAuth.js o Supabase Auth)
+3. Almacenar datos en una base de datos segura (como PostgreSQL)
+4. Almacenar archivos en un servicio de almacenamiento seguro (como Vercel Blob)
+5. Rotar periódicamente las claves de acceso
+\`\`\`
+
+Finalmente, vamos a actualizar el componente de login para usar las variables de entorno:
+
+```typescriptreact file="app/(auth)/login/page.tsx"
+[v0-no-op-code-block-prefix]"use client"
 
 import type React from "react"
 

@@ -1,19 +1,20 @@
 import type { User } from "@/types/user"
+import { ADMIN_EMAIL, ADMIN_NAME, TEST_USER_EMAIL, TEST_USER_NAME } from "@/lib/env"
 
 // Datos de ejemplo para usuarios
 const mockUsers: User[] = [
   {
     id: "1",
-    name: "Administrador",
-    email: "admin@ldh.org",
+    name: ADMIN_NAME,
+    email: ADMIN_EMAIL,
     degree: 33,
     lodge: "Admin",
     role: "admin",
   },
   {
     id: "2",
-    name: "Usuario Grado 1",
-    email: "user1@ldh.org",
+    name: TEST_USER_NAME,
+    email: TEST_USER_EMAIL,
     degree: 1,
     lodge: "Taller 1",
     role: "user",
@@ -44,17 +45,25 @@ const mockUsers: User[] = [
   },
 ]
 
+// Variable para almacenar los usuarios (simulando una base de datos)
+const users = [...mockUsers]
+
 // Función para obtener todos los usuarios
 export async function getUsers(): Promise<User[]> {
   // Simulación de obtención de usuarios
-  // En una implementación real, esto sería una llamada a la API
-  return mockUsers
+  return [...users]
 }
 
 // Función para añadir un nuevo usuario
 export async function addUser(userData: Omit<User, "id">): Promise<User> {
   // Simulación de añadir usuario
   // En una implementación real, esto sería una llamada a la API
+
+  // Verificar si el email ya existe
+  const existingUser = users.find((u) => u.email === userData.email)
+  if (existingUser) {
+    throw new Error(`El email ${userData.email} ya está en uso`)
+  }
 
   // Generar un ID único
   const id = Math.random().toString(36).substring(2, 11)
@@ -65,7 +74,9 @@ export async function addUser(userData: Omit<User, "id">): Promise<User> {
     ...userData,
   }
 
-  // En una implementación real, aquí se enviaría el usuario a la base de datos
+  // Añadir el usuario a la lista
+  users.push(newUser)
+
   console.log("Usuario añadido:", newUser)
 
   return newUser
@@ -77,19 +88,28 @@ export async function updateUser(id: string, userData: Partial<User>): Promise<U
   // En una implementación real, esto sería una llamada a la API
 
   // Buscar el usuario existente
-  const existingUser = mockUsers.find((u) => u.id === id)
+  const userIndex = users.findIndex((u) => u.id === id)
 
-  if (!existingUser) {
+  if (userIndex === -1) {
     throw new Error(`Usuario con ID ${id} no encontrado`)
+  }
+
+  // Verificar si el email ya existe (si se está cambiando)
+  if (userData.email && userData.email !== users[userIndex].email) {
+    const existingUser = users.find((u) => u.email === userData.email)
+    if (existingUser) {
+      throw new Error(`El email ${userData.email} ya está en uso`)
+    }
   }
 
   // Actualizar el usuario
   const updatedUser: User = {
-    ...existingUser,
+    ...users[userIndex],
     ...userData,
   }
 
-  // En una implementación real, aquí se actualizaría el usuario en la base de datos
+  users[userIndex] = updatedUser
+
   console.log("Usuario actualizado:", updatedUser)
 
   return updatedUser
@@ -101,12 +121,14 @@ export async function deleteUser(id: string): Promise<void> {
   // En una implementación real, esto sería una llamada a la API
 
   // Verificar que el usuario existe
-  const existingUser = mockUsers.find((u) => u.id === id)
+  const userIndex = users.findIndex((u) => u.id === id)
 
-  if (!existingUser) {
+  if (userIndex === -1) {
     throw new Error(`Usuario con ID ${id} no encontrado`)
   }
 
-  // En una implementación real, aquí se eliminaría el usuario de la base de datos
-  console.log("Usuario eliminado:", existingUser)
+  // Eliminar el usuario
+  users.splice(userIndex, 1)
+
+  console.log(`Usuario con ID ${id} eliminado`)
 }

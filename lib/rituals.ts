@@ -1,10 +1,12 @@
 import type { Ritual } from "@/types/ritual"
+import { APP_NAME } from "@/lib/env"
+import { uploadFile } from "@/lib/blob"
 
 // Datos de ejemplo para rituales
 const mockRituals: Ritual[] = [
   {
     id: "1",
-    name: "Ritual de Apertura Grado 1",
+    name: `Ritual de Apertura Grado 1 - ${APP_NAME}`,
     degree: 1,
     ritualSystem: "Escocés",
     language: "Español",
@@ -134,31 +136,35 @@ export async function uploadRitual(ritualData: {
   file: File
   author: string
 }): Promise<Ritual> {
-  // Simulación de subida de ritual
-  // En una implementación real, esto subiría el archivo a Vercel Blob
-  // y guardaría los metadatos en la base de datos
+  try {
+    // Subir el archivo a Vercel Blob
+    const fileUrl = await uploadFile(ritualData.file)
 
-  // Generar un ID único
-  const id = Math.random().toString(36).substring(2, 11)
+    // Generar un ID único
+    const id = Math.random().toString(36).substring(2, 11)
 
-  // Crear el nuevo ritual
-  const newRitual: Ritual = {
-    id,
-    name: ritualData.name,
-    degree: ritualData.degree,
-    ritualSystem: ritualData.ritualSystem,
-    language: ritualData.language,
-    author: ritualData.author,
-    fileUrl: `/files/${ritualData.file.name}`,
-    createdAt: new Date().toISOString(),
+    // Crear el nuevo ritual
+    const newRitual: Ritual = {
+      id,
+      name: ritualData.name,
+      degree: ritualData.degree,
+      ritualSystem: ritualData.ritualSystem,
+      language: ritualData.language,
+      author: ritualData.author,
+      fileUrl,
+      createdAt: new Date().toISOString(),
+    }
+
+    // Añadir el nuevo ritual a la lista
+    rituals.push(newRitual)
+
+    console.log("Ritual subido:", newRitual)
+
+    return newRitual
+  } catch (error) {
+    console.error("Error al subir ritual:", error)
+    throw error
   }
-
-  // Añadir el nuevo ritual a la lista
-  rituals.push(newRitual)
-
-  console.log("Ritual subido:", newRitual)
-
-  return newRitual
 }
 
 // Función para eliminar un ritual

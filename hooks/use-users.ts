@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { User } from "@/types/user"
 import { getUsers, addUser as addUserApi, updateUser as updateUserApi, deleteUser as deleteUserApi } from "@/lib/users"
 
@@ -8,20 +8,20 @@ export function useUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const data = await getUsers()
-        setUsers(data)
-      } catch (error) {
-        console.error("Error al obtener usuarios:", error)
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchUsers = useCallback(async () => {
+    try {
+      const data = await getUsers()
+      setUsers(data)
+    } catch (error) {
+      console.error("Error al obtener usuarios:", error)
+    } finally {
+      setIsLoading(false)
     }
-
-    fetchUsers()
   }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
 
   const addUser = async (userData: Omit<User, "id">) => {
     try {
@@ -55,5 +55,5 @@ export function useUsers() {
     }
   }
 
-  return { users, isLoading, addUser, updateUser, deleteUser }
+  return { users, isLoading, addUser, updateUser, deleteUser, refetch: fetchUsers }
 }
