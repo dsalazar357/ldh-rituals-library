@@ -12,14 +12,33 @@ export default function AuthDebugPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [cookieInfo, setCookieInfo] = useState<string[]>([])
+  const [isMounted, setIsMounted] = useState(false)
 
+  // Asegurarnos de que el componente solo se ejecute en el cliente
   useEffect(() => {
+    setIsMounted(true)
     checkSession()
     // Obtener información de cookies
     if (typeof document !== "undefined") {
       setCookieInfo(document.cookie.split(";").map((c) => c.trim()))
     }
   }, [])
+
+  // Si no está montado, no renderizar nada que dependa de hooks del cliente
+  if (!isMounted) {
+    return (
+      <div className="container mx-auto p-4 max-w-3xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cargando diagnóstico...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Inicializando herramientas de diagnóstico...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   const checkSession = async () => {
     try {
