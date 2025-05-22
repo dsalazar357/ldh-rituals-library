@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { Ritual } from "@/types/ritual"
 import { getRituals } from "@/lib/ritual-service"
 
@@ -8,8 +8,9 @@ export function useRituals() {
   const [rituals, setRituals] = useState<Ritual[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const fetchedRef = useRef(false)
 
-  const fetchRituals = useCallback(async () => {
+  const fetchRituals = async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -21,11 +22,18 @@ export function useRituals() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
-    fetchRituals()
-  }, [fetchRituals])
+    if (!fetchedRef.current) {
+      fetchedRef.current = true
+      fetchRituals()
+    }
+  }, [])
 
-  return { rituals, isLoading, error, refetch: fetchRituals }
+  const refetch = () => {
+    fetchRituals()
+  }
+
+  return { rituals, isLoading, error, refetch }
 }

@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -60,86 +60,60 @@ function RitualsListContent() {
   const { handleDelete, isDeleting } = useDeleteRitual()
   const [ritualToDelete, setRitualToDelete] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const isAdmin = user?.role === "admin"
 
-  // Manejar errores
-  useEffect(() => {
-    try {
-      // Verificar que tenemos los datos necesarios
-      if (!isLoading && !rituals) {
-        setError("No se pudieron cargar los rituales. Por favor, intenta recargar la página.")
-      } else {
-        setError(null)
+  // Memoizar los rituales filtrados para evitar recálculos innecesarios
+  const organizedRituals = useMemo(() => {
+    if (!rituals || !Array.isArray(rituals)) {
+      return {}
+    }
+
+    // Filtrar rituales por grado del usuario y filtros aplicados
+    let filteredRituals = rituals.filter((ritual) => ritual.degree <= (user?.degree || 0))
+
+    // Aplicar filtros adicionales
+    if (filters.degree) {
+      filteredRituals = filteredRituals.filter((ritual) => ritual.degree === filters.degree)
+    }
+
+    if (filters.ritualSystem) {
+      filteredRituals = filteredRituals.filter((ritual) => ritual.ritualSystem === filters.ritualSystem)
+    }
+
+    if (filters.language) {
+      filteredRituals = filteredRituals.filter((ritual) => ritual.language === filters.language)
+    }
+
+    // Organizar por el criterio seleccionado
+    const organized: Record<string, typeof filteredRituals> = {}
+
+    filteredRituals.forEach((ritual) => {
+      let key = ""
+
+      switch (filters.organizeBy) {
+        case "degree":
+          key = `Grado ${ritual.degree}`
+          break
+        case "ritualSystem":
+          key = ritual.ritualSystem
+          break
+        case "language":
+          key = ritual.language
+          break
+        default:
+          key = `Grado ${ritual.degree}`
       }
-    } catch (err) {
-      console.error("Error en RitualsList:", err)
-      setError("Ocurrió un error inesperado. Por favor, intenta recargar la página.")
-    }
-  }, [isLoading, rituals])
 
-  // Si hay un error, mostrar un mensaje
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )
-  }
+      if (!organized[key]) {
+        organized[key] = []
+      }
 
-  // Si está cargando, mostrar el componente de carga
-  if (isLoading) {
-    return <RitualsListLoading />
-  }
+      organized[key].push(ritual)
+    })
 
-  // Asegurarse de que rituals es un array
-  const ritualsArray = Array.isArray(rituals) ? rituals : []
-
-  // Filtrar rituales por grado del usuario y filtros aplicados
-  let filteredRituals = ritualsArray.filter((ritual) => ritual.degree <= (user?.degree || 0))
-
-  // Aplicar filtros adicionales
-  if (filters.degree) {
-    filteredRituals = filteredRituals.filter((ritual) => ritual.degree === filters.degree)
-  }
-
-  if (filters.ritualSystem) {
-    filteredRituals = filteredRituals.filter((ritual) => ritual.ritualSystem === filters.ritualSystem)
-  }
-
-  if (filters.language) {
-    filteredRituals = filteredRituals.filter((ritual) => ritual.language === filters.language)
-  }
-
-  // Organizar por el criterio seleccionado
-  const organizedRituals: Record<string, typeof filteredRituals> = {}
-
-  filteredRituals.forEach((ritual) => {
-    let key = ""
-
-    switch (filters.organizeBy) {
-      case "degree":
-        key = `Grado ${ritual.degree}`
-        break
-      case "ritualSystem":
-        key = ritual.ritualSystem
-        break
-      case "language":
-        key = ritual.language
-        break
-      default:
-        key = `Grado ${ritual.degree}`
-    }
-
-    if (!organizedRituals[key]) {
-      organizedRituals[key] = []
-    }
-
-    organizedRituals[key].push(ritual)
-  })
+    return organized
+  }, [rituals, filters, user?.degree])
 
   const confirmDelete = async () => {
     if (ritualToDelete) {
@@ -148,6 +122,22 @@ function RitualsListContent() {
       setIsDeleteDialogOpen(false)
       refetch()
     }
+  }
+
+  // Si está cargando, mostrar el componente de carga
+  if (isLoading) {
+    return <RitualsListLoading />
+  }
+
+  // Si no hay rituales, mostrar mensaje de error
+  if (!rituals || !Array.isArray(rituals)) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>No se pudieron cargar los rituales. Por favor, intenta recargar la página.</AlertDescription>
+      </Alert>
+    )
   }
 
   return (

@@ -64,6 +64,31 @@ function RitualsFiltersContent() {
   const ritualSystems = ["Escocés", "Francés", "Emulación", "York"]
   const languages = ["Español", "Inglés", "Francés", "Portugués"]
 
+  const handleOrganizeByChange = (value: string) => {
+    setFilters({ ...filters, organizeBy: value })
+  }
+
+  const handleDegreeChange = (value: string) => {
+    setFilters({
+      ...filters,
+      degree: value === "all" ? undefined : Number.parseInt(value),
+    })
+  }
+
+  const handleRitualSystemChange = (value: string) => {
+    setFilters({
+      ...filters,
+      ritualSystem: value === "all" ? undefined : value,
+    })
+  }
+
+  const handleLanguageChange = (value: string) => {
+    setFilters({
+      ...filters,
+      language: value === "all" ? undefined : value,
+    })
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -72,10 +97,7 @@ function RitualsFiltersContent() {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label>Organizar por</Label>
-          <RadioGroup
-            value={filters.organizeBy}
-            onValueChange={(value) => setFilters({ ...filters, organizeBy: value })}
-          >
+          <RadioGroup value={filters.organizeBy} onValueChange={handleOrganizeByChange}>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="degree" id="degree" />
               <Label htmlFor="degree">Grado</Label>
@@ -93,10 +115,7 @@ function RitualsFiltersContent() {
 
         <div className="space-y-2">
           <Label htmlFor="degree">Grado</Label>
-          <Select
-            value={filters.degree?.toString() || ""}
-            onValueChange={(value) => setFilters({ ...filters, degree: value ? Number.parseInt(value) : undefined })}
-          >
+          <Select value={filters.degree?.toString() || "all"} onValueChange={handleDegreeChange}>
             <SelectTrigger id="degree">
               <SelectValue placeholder="Todos los grados" />
             </SelectTrigger>
@@ -111,10 +130,7 @@ function RitualsFiltersContent() {
 
         <div className="space-y-2">
           <Label htmlFor="ritualSystem">Sistema Ritual</Label>
-          <Select
-            value={filters.ritualSystem || ""}
-            onValueChange={(value) => setFilters({ ...filters, ritualSystem: value || undefined })}
-          >
+          <Select value={filters.ritualSystem || "all"} onValueChange={handleRitualSystemChange}>
             <SelectTrigger id="ritualSystem">
               <SelectValue placeholder="Todos los ritos" />
             </SelectTrigger>
@@ -131,10 +147,7 @@ function RitualsFiltersContent() {
 
         <div className="space-y-2">
           <Label htmlFor="language">Idioma</Label>
-          <Select
-            value={filters.language || ""}
-            onValueChange={(value) => setFilters({ ...filters, language: value || undefined })}
-          >
+          <Select value={filters.language || "all"} onValueChange={handleLanguageChange}>
             <SelectTrigger id="language">
               <SelectValue placeholder="Todos los idiomas" />
             </SelectTrigger>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 
 interface RitualsFilters {
@@ -14,8 +14,9 @@ export function useRitualsFilter() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const initializedRef = useRef(false)
 
-  // Inicializar con valores por defecto para evitar undefined
+  // Inicializar con valores por defecto
   const [filters, setFiltersState] = useState<RitualsFilters>({
     organizeBy: "degree",
     degree: undefined,
@@ -23,9 +24,10 @@ export function useRitualsFilter() {
     language: undefined,
   })
 
-  // Actualizar los filtros cuando cambian los searchParams
+  // Actualizar los filtros cuando cambian los searchParams (solo una vez al inicio)
   useEffect(() => {
-    if (searchParams) {
+    if (!initializedRef.current && searchParams) {
+      initializedRef.current = true
       setFiltersState({
         organizeBy: searchParams.get("organizeBy") || "degree",
         degree: searchParams.get("degree") ? Number.parseInt(searchParams.get("degree") as string) : undefined,
@@ -35,7 +37,7 @@ export function useRitualsFilter() {
     }
   }, [searchParams])
 
-  // Actualizar la URL cuando cambien los filtros
+  // Función para actualizar filtros y URL
   const setFilters = (newFilters: RitualsFilters) => {
     setFiltersState(newFilters)
 
@@ -57,16 +59,18 @@ export function useRitualsFilter() {
       params.set("language", newFilters.language)
     }
 
-    router.push(`${pathname}?${params.toString()}`)
+    const newUrl = `${pathname}?${params.toString()}`
+    router.replace(newUrl)
   }
 
   const resetFilters = () => {
-    setFilters({
+    const defaultFilters = {
       organizeBy: "degree",
       degree: undefined,
       ritualSystem: undefined,
       language: undefined,
-    })
+    }
+    setFilters(defaultFilters)
   }
 
   return { filters, setFilters, resetFilters }

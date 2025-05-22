@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import type { User } from "@/types/user"
 import {
   getUsers,
@@ -12,8 +12,9 @@ import {
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const fetchedRef = useRef(false)
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = async () => {
     try {
       setIsLoading(true)
       const data = await getUsers()
@@ -23,11 +24,14 @@ export function useUsers() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }
 
   useEffect(() => {
-    fetchUsers()
-  }, [fetchUsers])
+    if (!fetchedRef.current) {
+      fetchedRef.current = true
+      fetchUsers()
+    }
+  }, [])
 
   const addUser = async (userData: Omit<User, "id"> & { password?: string }) => {
     try {
