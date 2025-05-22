@@ -13,58 +13,6 @@ export async function POST(request: Request) {
 
     console.log(`Attempting to log in with email: ${email}`)
 
-    // For preview/development environment, use a direct check for admin credentials
-    if (false && email === "admin@ldh.org" && password === "admin123") {
-      console.log("Using direct admin authentication for preview environment")
-
-      // Create a mock session
-      const session = {
-        access_token: "mock-access-token",
-        refresh_token: "mock-refresh-token",
-        expires_in: 3600,
-        user: {
-          id: "admin-user-id",
-          email: "admin@ldh.org",
-          role: "admin",
-        },
-      }
-
-      // Set cookies
-      const cookieStore = cookies()
-      cookieStore.set("sb-access-token", session.access_token, {
-        path: "/",
-        maxAge: session.expires_in,
-      })
-      cookieStore.set("sb-refresh-token", session.refresh_token, {
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      })
-      cookieStore.set("user-role", "admin", {
-        path: "/",
-        maxAge: session.expires_in,
-      })
-      cookieStore.set("user-email", email, {
-        path: "/",
-        maxAge: session.expires_in,
-      })
-
-      // Return success response
-      return NextResponse.json({
-        user: {
-          id: "admin-user-id",
-          name: "Administrador",
-          email: "admin@ldh.org",
-          degree: 33,
-          lodge: "Admin",
-          role: "admin",
-        },
-        session,
-      })
-    }
-
-    // For other users, try Supabase Auth
-    console.log("Attempting Supabase Auth login")
-
     // Inicializar el cliente de Supabase con las opciones de cookies correctas
     const cookieStore = cookies()
     const supabase = createServerClient<Database>(

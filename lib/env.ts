@@ -14,7 +14,7 @@ export const APP_URL = getEnvVariable("APP_URL", "http://localhost:3000")
 // Variables de entorno para autenticación
 export const AUTH_SECRET = getEnvVariable("AUTH_SECRET", "clave_secreta_por_defecto")
 
-// Añade esta función para verificar el modo producción
+// Siempre devuelve true para forzar el modo producción
 export function isProductionMode(): boolean {
-  return process.env.NEXT_PUBLIC_PRODUCTION_MODE === "true"
+  return true
 }

@@ -192,27 +192,18 @@ const createMockClient = () => {
   } as any
 }
 
-export const createClient = () => {
-  if (isPreviewEnvironment) {
-    console.log("Using mock Supabase client for preview environment")
-    return createMockClient()
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Crear y exportar una instancia del cliente para uso en el navegador
+export function createClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase URL or Anon Key is missing, falling back to mock client")
-    return createMockClient()
+    console.error("Supabase URL or Anon Key is missing")
+    throw new Error("Supabase configuration is missing")
   }
 
-  try {
-    return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
-  } catch (error) {
-    console.error("Error creating Supabase client:", error)
-    return createMockClient()
-  }
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 }
 
-// Crear y exportar una instancia del cliente para uso en el navegador
+// Exportar una instancia del cliente
 export const supabaseDb = createClient()

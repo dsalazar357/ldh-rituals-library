@@ -26,116 +26,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Check if we're in a preview environment
-  const isPreviewEnvironment = false
-
-  // Only create the Supabase client if we're not in a preview environment
-  const supabase = !isPreviewEnvironment ? createClient() : null
-
-  // Function to get cookies
-  const getCookie = (name: string) => {
-    if (typeof document === "undefined") return null
-    const value = `; ${document.cookie}`
-    const parts = value.split(`; ${name}=`)
-    if (parts.length === 2) return parts.pop()?.split(";").shift() || null
-    return null
-  }
+  // Crear el cliente de Supabase
+  const supabase = createClient()
 
   useEffect(() => {
     const getSession = async () => {
       setIsLoading(true)
       try {
-        // Check for our custom auth cookies first
-        const userRole = getCookie("user-role")
-        const userEmail = getCookie("user-email")
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
 
-        if (userRole === "admin" && userEmail === "admin@ldh.org") {
-          console.log("Using custom auth for admin user")
-          setUser({
-            id: "admin-user-id",
-            name: "Administrador",
-            email: "admin@ldh.org",
-            degree: 33,
-            lodge: "Admin",
-            role: "admin",
-          })
-          setSession({} as Session) // Mock session
-          setIsLoading(false)
-          return
-        }
-
-        // Fall back to Supabase Auth if not in preview environment
-        if (!isPreviewEnvironment && supabase) {
-          const {
-            data: { session },
-            error,
-          } = await supabase.auth.getSession()
-
-          if (error) {
-            console.error("Error getting session:", error)
-            setIsLoading(false)
-            return
-          }
-
-          setSession(session)
-
-          if (session) {
-            // Get user profile
-            const { data: profile, error: profileError } = await supabase
-              .from("users")
-              .select("*")
-              .eq("id", session.user.id)
-              .single()
-
-            if (profileError) {
-              console.error("Error getting user profile:", profileError)
-              setIsLoading(false)
-              return
-            }
-
-            if (profile) {
-              setUser({
-                id: profile.id,
-                name: profile.name,
-                email: session.user.email!,
-                degree: profile.degree,
-                lodge: profile.lodge || undefined,
-                role: profile.role,
-              })
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error in getSession:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    getSession()
-
-    // Set up auth state change listener if not in preview environment
-    let subscription: { unsubscribe: () => void } | null = null
-
-    if (!isPreviewEnvironment && supabase) {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.email)
-
-        // Check for our custom auth cookies first
-        const userRole = getCookie("user-role")
-        const userEmail = getCookie("user-email")
-
-        if (userRole === "admin" && userEmail === "admin@ldh.org") {
-          console.log("Using custom auth for admin user (from auth change)")
-          setUser({
-            id: "admin-user-id",
-            name: "Administrador",
-            email: "admin@ldh.org",
-            degree: 33,
-            lodge: "Admin",
-            role: "admin",
-          })
-          setSession({} as Session) // Mock session
+        if (error) {
+          console.error("Error getting session:", error)
           setIsLoading(false)
           return
         }
@@ -152,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (profileError) {
             console.error("Error getting user profile:", profileError)
+            setIsLoading(false)
             return
           }
 
@@ -165,22 +70,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: profile.role,
             })
           }
-        } else {
-          setUser(null)
         }
-
+      } catch (error) {
+        console.error("Error in getSession:", error)
+      } finally {
         setIsLoading(false)
-      })
-
-      subscription = data.subscription
-    }
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe()
       }
     }
-  }, [supabase, isPreviewEnvironment])
+
+    getSession()
+
+    // Set up auth state change listener
+    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email)
+
+      setSession(session)
+
+      if (session) {
+        // Get user profile
+        const { data: profile, error: profileError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profileError) {
+          console.error("Error getting user profile:", profileError)
+          return
+        }
+
+        if (profile) {
+          setUser({
+            id: profile.id,
+            name: profile.name,
+            email: session.user.email!,
+            degree: profile.degree,
+            lodge: profile.lodge || undefined,
+            role: profile.role,
+          })
+        }
+      } else {
+        setUser(null)
+      }
+
+      setIsLoading(false)
+    })
+
+    const subscription = data.subscription
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   // Redirect based on auth state - but with less aggressive redirects
   useEffect(() => {
@@ -199,18 +140,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // In preview environment, use direct login
-      if (isPreviewEnvironment && email === "admin@ldh.org" && password === "admin123") {
-        // Set cookies directly
-        document.cookie = "user-role=admin; path=/; max-age=3600"
-        document.cookie = "user-email=admin@ldh.org; path=/; max-age=3600"
-        document.cookie = "sb-access-token=mock-token; path=/; max-age=3600"
-
-        // Redirect to dashboard
-        window.location.href = "/"
-        return true
-      }
-
       // Use our direct login API
       const response = await fetch("/api/login", {
         method: "POST",
@@ -238,16 +167,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string, degree: number, lodge: string) => {
     try {
-      // In preview environment, just return success
-      if (isPreviewEnvironment) {
-        return true
-      }
-
-      if (!supabase) {
-        console.error("Supabase client not available")
-        return false
-      }
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -280,16 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      // Clear our custom cookies
-      document.cookie = "user-role=; path=/; max-age=0"
-      document.cookie = "user-email=; path=/; max-age=0"
-      document.cookie = "sb-access-token=; path=/; max-age=0"
-      document.cookie = "sb-refresh-token=; path=/; max-age=0"
-
-      // Also try Supabase signout if not in preview environment
-      if (!isPreviewEnvironment && supabase) {
-        await supabase.auth.signOut()
-      }
+      await supabase.auth.signOut()
 
       // Redirect to login
       window.location.href = "/login"

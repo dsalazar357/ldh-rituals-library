@@ -19,14 +19,9 @@ export default function LoginPage() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const [email, setEmail] = useState("admin@ldh.org")
-  const [password, setPassword] = useState("admin123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [debugInfo, setDebugInfo] = useState<any>(null)
-
-  // Check if we're in a preview environment
-  const isPreviewEnvironment =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,13 +30,6 @@ export default function LoginPage() {
     setDebugInfo(null)
 
     try {
-      // In preview environment, use direct login
-      if (isPreviewEnvironment && email === "admin@ldh.org" && password === "admin123") {
-        console.log("Using direct login for preview environment")
-        loginDirectly()
-        return
-      }
-
       // Use our direct login API
       const response = await fetch("/api/login", {
         method: "POST",
@@ -81,13 +69,6 @@ export default function LoginPage() {
       setError("")
       setDebugInfo(null)
 
-      // In preview environment, just use direct login
-      if (isPreviewEnvironment) {
-        console.log("Using direct login for preview environment")
-        loginDirectly()
-        return
-      }
-
       const response = await fetch("/api/seed-admin")
       const data = await response.json()
 
@@ -107,16 +88,6 @@ export default function LoginPage() {
     }
   }
 
-  const loginDirectly = () => {
-    // Set cookies directly
-    document.cookie = "user-role=admin; path=/; max-age=3600"
-    document.cookie = "user-email=admin@ldh.org; path=/; max-age=3600"
-    document.cookie = "sb-access-token=mock-token; path=/; max-age=3600"
-
-    // Redirect to dashboard
-    window.location.href = "/"
-  }
-
   return (
     <Card>
       <CardHeader className="space-y-1">
@@ -124,15 +95,6 @@ export default function LoginPage() {
         <CardDescription>Ingresa tus credenciales para acceder a la biblioteca de rituales</CardDescription>
       </CardHeader>
       <CardContent>
-        {isPreviewEnvironment && (
-          <Alert className="mb-4">
-            <AlertTitle>Modo de vista previa</AlertTitle>
-            <AlertDescription>
-              Estás en un entorno de vista previa. Usa el botón "Acceso directo" para iniciar sesión como administrador.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -176,35 +138,23 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 pt-4 border-t space-y-4">
-          {!isPreviewEnvironment && (
-            <Button variant="outline" className="w-full" onClick={createAdminAccount} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
-                </>
-              ) : (
-                "Crear cuenta de administrador"
-              )}
-            </Button>
-          )}
-
-          <Button variant="secondary" className="w-full" onClick={loginDirectly} disabled={isLoading}>
-            Acceso directo (modo desarrollo)
+          <Button variant="outline" className="w-full" onClick={createAdminAccount} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creando...
+              </>
+            ) : (
+              "Crear cuenta de administrador"
+            )}
           </Button>
 
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            {isPreviewEnvironment
-              ? "Usa el botón de acceso directo para entrar como administrador"
-              : "Si es la primera vez que accedes, crea la cuenta de administrador"}
-          </p>
+          {debugInfo && (
+            <div className="mt-4 p-2 bg-muted rounded-md">
+              <p className="text-xs font-mono overflow-auto max-h-32">{JSON.stringify(debugInfo, null, 2)}</p>
+            </div>
+          )}
         </div>
-
-        {debugInfo && (
-          <div className="mt-4 p-2 bg-muted rounded-md">
-            <p className="text-xs font-mono overflow-auto max-h-32">{JSON.stringify(debugInfo, null, 2)}</p>
-          </div>
-        )}
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">
