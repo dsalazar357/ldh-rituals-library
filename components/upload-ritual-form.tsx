@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { uploadRitual } from "@/lib/ritual-service"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { BLOB_READ_WRITE_TOKEN } from "@/lib/env"
 
 export function UploadRitualForm() {
   const router = useRouter()
@@ -31,12 +32,19 @@ export function UploadRitualForm() {
     file: null as File | null,
   })
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const [blobTokenAvailable, setBlobTokenAvailable] = useState(true)
 
-  // Verificar el estado de autenticación después de que el componente se monte
+  // Verificar el estado de autenticación y la disponibilidad del token de Vercel Blob
   useEffect(() => {
     // Esperar a que se complete la carga de autenticación
     if (!authLoading) {
       setIsCheckingAuth(false)
+    }
+
+    // Verificar si el token de Vercel Blob está disponible
+    if (!BLOB_READ_WRITE_TOKEN) {
+      console.error("No se encontró el token de Vercel Blob")
+      setBlobTokenAvailable(false)
     }
   }, [authLoading])
 
@@ -75,6 +83,12 @@ export function UploadRitualForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setUploadError(null)
+
+    // Verificar si el token de Vercel Blob está disponible
+    if (!blobTokenAvailable) {
+      setUploadError("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
+      return
+    }
 
     // Verificar nuevamente la autenticación antes de subir
     if (!user) {
@@ -135,9 +149,20 @@ export function UploadRitualForm() {
       router.push("/rituales")
     } catch (error) {
       console.error("Error al subir el ritual:", error)
-      setUploadError(
-        error instanceof Error ? error.message : "Ocurrió un error al subir el ritual. Por favor, inténtalo de nuevo.",
-      )
+
+      // Manejar específicamente el error de token de Vercel Blob
+      if (
+        error instanceof Error &&
+        (error.message.includes("No token found") || error.message.includes("Error de configuración"))
+      ) {
+        setUploadError("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
+      } else {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al subir el ritual. Por favor, inténtalo de nuevo.",
+        )
+      }
     } finally {
       setIsUploading(false)
     }
@@ -172,6 +197,24 @@ export function UploadRitualForm() {
           <div className="mt-4 flex justify-center">
             <Button onClick={() => router.push("/login")}>Ir a la página de inicio de sesión</Button>
           </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Mostrar un error si no está disponible el token de Vercel Blob
+  if (!blobTokenAvailable) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error de configuración</AlertTitle>
+            <AlertDescription>
+              No se puede subir archivos en este momento debido a un problema de configuración. Por favor, contacta al
+              administrador del sistema.
+            </AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     )

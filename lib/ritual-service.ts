@@ -1,6 +1,7 @@
 import { supabaseDb } from "@/lib/supabase"
 import { put } from "@vercel/blob"
 import type { Ritual } from "@/types/ritual"
+import { BLOB_READ_WRITE_TOKEN } from "@/lib/env"
 
 // Get all rituals
 export async function getRituals(): Promise<Ritual[]> {
@@ -74,14 +75,21 @@ export async function uploadRitual(ritualData: {
 
     console.log("Iniciando subida de ritual para usuario:", ritualData.userId)
 
+    // Verificar que tenemos el token de Vercel Blob
+    if (!BLOB_READ_WRITE_TOKEN) {
+      console.error("No se encontró el token de Vercel Blob")
+      throw new Error("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
+    }
+
     // Generate a safe filename
     const safeFileName = `${Date.now()}-${ritualData.file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
     const filePath = `rituales/${ritualData.degree}/${safeFileName}`
 
-    // Upload file to Vercel Blob
+    // Upload file to Vercel Blob with explicit token
     console.log("Subiendo archivo a Vercel Blob...")
     const blob = await put(filePath, ritualData.file, {
       access: "public",
+      token: BLOB_READ_WRITE_TOKEN,
     })
 
     console.log("Archivo subido correctamente:", blob.url)
@@ -121,6 +129,12 @@ export async function uploadRitual(ritualData: {
     }
   } catch (error) {
     console.error("Error in uploadRitual:", error)
+
+    // Manejar específicamente el error de token de Vercel Blob
+    if (error instanceof Error && error.message.includes("No token found")) {
+      throw new Error("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
+    }
+
     throw error
   }
 }
