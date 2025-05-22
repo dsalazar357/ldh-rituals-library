@@ -1,14 +1,14 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { BookOpen, Home, Upload, Users, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/components/auth-provider" // Use the hook instead of importing AuthContext directly
+import { useAuth } from "@/hooks/use-auth"
 import { useSidebar } from "@/hooks/use-sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useEffect, useState } from "react"
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -20,6 +20,11 @@ export function Sidebar() {
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  // Si no está montado, no renderizar nada
+  if (!isMounted) {
+    return null
+  }
 
   const isAdmin = user?.role === "admin"
   const isCollapsed = state === "collapsed"
@@ -54,10 +59,6 @@ export function Sidebar() {
         ]
       : []),
   ]
-
-  if (!isMounted) {
-    return null // No renderizar nada hasta que el componente esté montado
-  }
 
   return (
     <>

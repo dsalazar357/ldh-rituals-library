@@ -76,6 +76,11 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => (prev === "expanded" ? "collapsed" : "expanded"))
   }
 
+  // Solo proporcionar el contexto si el componente está montado
+  if (!isMounted) {
+    return <>{children}</>
+  }
+
   return <SidebarContext.Provider value={{ state, toggle, isOpen, setIsOpen }}>{children}</SidebarContext.Provider>
 }
 
