@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
+import type { Database } from "@/types/database"
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    // Crear un cliente de Supabase admin directamente sin usar cookies
+    const supabaseAdmin = createClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    )
 
     // Verificar si existe el usuario admin
-    const { data: existingAdmin, error: checkError } = await supabase
+    const { data: existingAdmin, error: checkError } = await supabaseAdmin
       .from("users")
       .select("*")
       .eq("email", "admin@ldh.org")
       .single()
 
-    if (checkError && checkError.code !== "PGRST116") {
+    if (checkError && !checkError.message.includes("No rows found")) {
       return NextResponse.json(
         { error: "Error al verificar usuario admin", details: checkError.message },
         { status: 500 },
@@ -21,7 +32,10 @@ export async function GET() {
 
     if (existingAdmin) {
       // Actualizar el rol a admin si existe
-      const { error: updateError } = await supabase.from("users").update({ role: "admin" }).eq("email", "admin@ldh.org")
+      const { error: updateError } = await supabaseAdmin
+        .from("users")
+        .update({ role: "admin" })
+        .eq("email", "admin@ldh.org")
 
       if (updateError) {
         return NextResponse.json(
@@ -41,7 +55,7 @@ export async function GET() {
       })
     } else {
       // Crear usuario admin si no existe
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: "admin@ldh.org",
         password: "admin123",
         email_confirm: true,
@@ -55,15 +69,17 @@ export async function GET() {
       }
 
       // Crear registro en la tabla users
-      const { data: newUser, error: userError } = await supabase.from("users").insert([
-        {
+      const { data: newUser, error: userError } = await supabaseAdmin
+        .from("users")
+        .insert({
           id: authUser.user.id,
           name: "Administrador",
           email: "admin@ldh.org",
-          degree: "33",
+          degree: 33,
+          lodge: "Admin",
           role: "admin",
-        },
-      ])
+        })
+        .select()
 
       if (userError) {
         return NextResponse.json(
@@ -83,6 +99,14 @@ export async function GET() {
       })
     }
   } catch (error: any) {
-    return NextResponse.json({ error: "Error interno del servidor", details: error.message }, { status: 500 })
+    console.error("Error en fix-admin:", error)
+    return NextResponse.json(
+      {
+        error: "Error interno del servidor",
+        details: error.message,
+        stack: error.stack,
+      },
+      { status: 500 },
+    )
   }
 }

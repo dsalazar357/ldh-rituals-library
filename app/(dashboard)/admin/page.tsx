@@ -1,10 +1,71 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, FileText, Settings, Shield } from "lucide-react"
+import { Users, FileText, Settings, Shield, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AdminDashboardPage() {
+  const { user, isLoading } = useAuth()
+  const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    // Solo verificar después de que el componente esté montado y la autenticación haya cargado
+    if (mounted && !isLoading) {
+      // Si no hay usuario o no es admin, redirigir al dashboard
+      if (!user || user.role !== "admin") {
+        console.log("No tienes permisos de administrador. Redirigiendo...")
+        router.push("/")
+      }
+    }
+  }, [user, isLoading, mounted, router])
+
+  // Mostrar un estado de carga mientras se verifica
+  if (isLoading || !mounted) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader
+          title="Cargando Panel de Administración"
+          description="Verificando permisos de administrador..."
+        />
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // Si no es admin pero aún no se ha redirigido, mostrar mensaje de error
+  if (!user || user.role !== "admin") {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader
+          title="Acceso Denegado"
+          description="No tienes permisos para acceder al panel de administración"
+        />
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Acceso Denegado</AlertTitle>
+          <AlertDescription>
+            Esta área está restringida a usuarios con rol de administrador. Serás redirigido al panel principal.
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => router.push("/")}>Volver al Panel Principal</Button>
+      </div>
+    )
+  }
+
+  // Si es admin, mostrar el panel de administración
   return (
     <div className="space-y-6">
       <DashboardHeader
