@@ -149,7 +149,7 @@ export function UsersTable() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Añadir Nuevo Usuario</DialogTitle>
+              <DialogTitle>Añadir Nuevo Usuario (Admin o Regular)</DialogTitle>
               <DialogDescription>Completa el formulario para añadir un nuevo usuario.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -205,7 +205,7 @@ export function UsersTable() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
+                <Label htmlFor="role">Rol del Usuario</Label>
                 <Select
                   value={formData.role || "user"}
                   onValueChange={(value) => setFormData({ ...formData, role: value })}
@@ -214,10 +214,13 @@ export function UsersTable() {
                     <SelectValue placeholder="Selecciona un rol" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">Usuario</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="user">Usuario Regular</SelectItem>
+                    <SelectItem value="admin">Administrador (acceso total)</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Los administradores tienen acceso completo a todas las funciones del sistema.
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -336,7 +339,7 @@ export function UsersTable() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-role">Rol</Label>
+              <Label htmlFor="edit-role">Rol del Usuario</Label>
               <Select
                 value={formData.role || "user"}
                 onValueChange={(value) => setFormData({ ...formData, role: value })}
@@ -345,10 +348,13 @@ export function UsersTable() {
                   <SelectValue placeholder="Selecciona un rol" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Usuario</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="user">Usuario Regular</SelectItem>
+                  <SelectItem value="admin">Administrador (acceso total)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Los administradores tienen acceso completo a todas las funciones del sistema.
+              </p>
             </div>
           </div>
           <DialogFooter>

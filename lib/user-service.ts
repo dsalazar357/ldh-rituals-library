@@ -54,8 +54,8 @@ export async function getUserById(id: string): Promise<User | null> {
 // Add a new user
 export async function addUser(userData: Omit<User, "id"> & { password?: string }): Promise<User> {
   try {
-    // En un entorno real, usaríamos la API para crear el usuario
-    const response = await fetch("/api/users", {
+    // Usar la API de administración para crear usuarios
+    const response = await fetch("/api/users/admin", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -64,7 +64,8 @@ export async function addUser(userData: Omit<User, "id"> & { password?: string }
     })
 
     if (!response.ok) {
-      throw new Error(`Error creating user: ${response.statusText}`)
+      const errorData = await response.json()
+      throw new Error(errorData.error || `Error creating user: ${response.statusText}`)
     }
 
     const data = await response.json()
