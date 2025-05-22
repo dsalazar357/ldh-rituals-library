@@ -1,7 +1,6 @@
 import { supabaseDb } from "@/lib/supabase"
-import { put } from "@vercel/blob"
 import type { Ritual } from "@/types/ritual"
-import { BLOB_READ_WRITE_TOKEN } from "@/lib/env"
+import { uploadFileToStorage, deleteFileFromStorage } from "@/lib/storage-service"
 
 // Get all rituals
 export async function getRituals(): Promise<Ritual[]> {
@@ -75,24 +74,9 @@ export async function uploadRitual(ritualData: {
 
     console.log("Iniciando subida de ritual para usuario:", ritualData.userId)
 
-    // Verificar que tenemos el token de Vercel Blob
-    if (!BLOB_READ_WRITE_TOKEN) {
-      console.error("No se encontró el token de Vercel Blob")
-      throw new Error("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
-    }
-
-    // Generate a safe filename
-    const safeFileName = `${Date.now()}-${ritualData.file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
-    const filePath = `rituales/${ritualData.degree}/${safeFileName}`
-
-    // Upload file to Vercel Blob with explicit token
-    console.log("Subiendo archivo a Vercel Blob...")
-    const blob = await put(filePath, ritualData.file, {
-      access: "public",
-      token: BLOB_READ_WRITE_TOKEN,
-    })
-
-    console.log("Archivo subido correctamente:", blob.url)
+    // Subir archivo a Supabase Storage
+    console.log("Subiendo archivo a Supabase Storage...")
+    const fileUrl = await uploadFileToStorage(ritualData.file, ritualData.degree)
 
     // Insert ritual into Supabase
     console.log("Guardando información del ritual en Supabase...")
@@ -104,7 +88,7 @@ export async function uploadRitual(ritualData: {
         ritual_system: ritualData.ritualSystem,
         language: ritualData.language,
         author: ritualData.author,
-        file_url: blob.url,
+        file_url: fileUrl,
         user_id: ritualData.userId,
       })
       .select()
@@ -129,12 +113,6 @@ export async function uploadRitual(ritualData: {
     }
   } catch (error) {
     console.error("Error in uploadRitual:", error)
-
-    // Manejar específicamente el error de token de Vercel Blob
-    if (error instanceof Error && error.message.includes("No token found")) {
-      throw new Error("Error de configuración: No se puede subir archivos en este momento. Contacta al administrador.")
-    }
-
     throw error
   }
 }
@@ -142,16 +120,30 @@ export async function uploadRitual(ritualData: {
 // Delete a ritual
 export async function deleteRitual(id: string): Promise<boolean> {
   try {
-    // Delete the ritual from Supabase
-    const { error } = await supabaseDb.from("rituals").delete().eq("id", id)
+    // Obtener la información del ritual para conseguir la URL del archivo
+    const { data: ritual, error: fetchError } = await supabaseDb
+      .from("rituals")
+      .select("file_url")
+      .eq("id", id)
+      .single()
 
-    if (error) {
-      console.error(`Error deleting ritual with ID ${id}:`, error)
+    if (fetchError) {
+      console.error(`Error fetching ritual with ID ${id}:`, fetchError)
       return false
     }
 
-    // Note: We can't delete the file from Vercel Blob from the client side
-    // This would require a server-side function
+    // Eliminar el ritual de la base de datos
+    const { error: deleteError } = await supabaseDb.from("rituals").delete().eq("id", id)
+
+    if (deleteError) {
+      console.error(`Error deleting ritual with ID ${id}:`, deleteError)
+      return false
+    }
+
+    // Eliminar el archivo de Supabase Storage
+    if (ritual.file_url) {
+      await deleteFileFromStorage(ritual.file_url)
+    }
 
     return true
   } catch (error) {
