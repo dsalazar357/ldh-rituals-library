@@ -53,6 +53,10 @@ export default function AuthDebugPage() {
     alert("Cookies eliminadas. Recarga la página para ver los cambios.")
   }
 
+  const forceRedirect = (path: string) => {
+    window.location.href = path
+  }
+
   return (
     <div className="container mx-auto p-4 max-w-3xl">
       <Card className="mb-6">
@@ -90,18 +94,27 @@ export default function AuthDebugPage() {
             )}
 
             <div className="mt-4">
-              <h3 className="font-medium mb-2">Enlaces rápidos:</h3>
+              <h3 className="font-medium mb-2">Redirección manual:</h3>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => (window.location.href = "/")}>
-                  Ir al Dashboard
-                </Button>
-                <Button variant="outline" onClick={() => (window.location.href = "/login")}>
-                  Ir a Login
-                </Button>
-                <Button variant="outline" onClick={() => (window.location.href = "/debug")}>
-                  Ir a Debug
+                <Button onClick={() => forceRedirect("/")}>Ir al Dashboard (forzado)</Button>
+                <Button onClick={() => forceRedirect("/login")} variant="outline">
+                  Ir a Login (forzado)
                 </Button>
               </div>
+            </div>
+
+            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+              <h3 className="font-medium mb-2">Estado de navegación:</h3>
+              <p>
+                <strong>URL actual:</strong> {typeof window !== "undefined" ? window.location.href : "No disponible"}
+              </p>
+              <p>
+                <strong>Ruta:</strong> {typeof window !== "undefined" ? window.location.pathname : "No disponible"}
+              </p>
+              <p>
+                <strong>Cookies:</strong>{" "}
+                {typeof document !== "undefined" ? document.cookie.split(";").length : "No disponible"}
+              </p>
             </div>
           </div>
         </CardContent>

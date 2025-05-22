@@ -9,7 +9,9 @@ function isExcludedPath(pathname: string): boolean {
     pathname.startsWith("/_next/") ||
     pathname.includes(".") ||
     pathname.startsWith("/api/") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/auth-debug" ||
+    pathname === "/debug"
   )
 }
 
@@ -23,17 +25,8 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
   // Rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/registro", "/debug"]
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith("/debug")
-
-  // Rutas de API que no requieren verificación
-  const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin", "/api/debug"]
-  const isApiRoute = apiRoutes.some((route) => pathname.startsWith(route))
-
-  // Permitir acceso a rutas de API sin verificación
-  if (isApiRoute) {
-    return res
-  }
+  const publicRoutes = ["/login", "/registro"]
+  const isPublicRoute = publicRoutes.includes(pathname)
 
   try {
     // Crear cliente de Supabase
@@ -70,15 +63,13 @@ export async function middleware(req: NextRequest) {
 
     // Si no hay sesión y la ruta no es pública, redirigir a login
     if (!session && !isPublicRoute) {
-      const url = new URL("/login", req.url)
-      // Evitar bucles de redirección añadiendo un parámetro
-      url.searchParams.set("redirect", encodeURIComponent(pathname))
-      return NextResponse.redirect(url)
+      console.log(`Middleware: Redirigiendo a login desde ${pathname} (no hay sesión)`)
+      return NextResponse.redirect(new URL("/login", req.url))
     }
 
     // Si hay sesión y la ruta es pública (como /login), redirigir al dashboard
-    // Pero solo si no estamos en /debug
-    if (session && isPublicRoute && pathname !== "/debug") {
+    if (session && isPublicRoute) {
+      console.log(`Middleware: Redirigiendo a dashboard desde ${pathname} (sesión activa)`)
       return NextResponse.redirect(new URL("/", req.url))
     }
 

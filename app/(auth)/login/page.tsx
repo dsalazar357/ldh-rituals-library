@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [loginSuccess, setLoginSuccess] = useState(false)
   const sessionCheckedRef = useRef(false)
+  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Verificar si ya hay una sesión activa al cargar (solo una vez)
   useEffect(() => {
@@ -42,6 +43,15 @@ export default function LoginPage() {
 
     checkSession()
   }, [router])
+
+  // Limpiar el timeout al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,8 +79,21 @@ export default function LoginPage() {
         console.log("Sesión iniciada correctamente")
         setLoginSuccess(true)
 
-        // Usar router.push en lugar de window.location para evitar recargas
-        router.push("/")
+        // Forzar redirección después de un breve retraso
+        redirectTimeoutRef.current = setTimeout(() => {
+          console.log("Ejecutando redirección forzada...")
+
+          // Intentar primero con router.push
+          router.push("/")
+
+          // Como respaldo, usar window.location después de un breve retraso
+          setTimeout(() => {
+            if (document.location.pathname === "/login") {
+              console.log("Redirección con router.push no funcionó, usando window.location...")
+              window.location.href = "/"
+            }
+          }, 500)
+        }, 1500)
       } else {
         setError("No se pudo iniciar sesión. Inténtalo de nuevo.")
         setIsLoading(false)
@@ -146,7 +169,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link href="/debug" className="text-sm text-blue-600 hover:underline">
+          <Link href="/auth-debug" className="text-sm text-blue-600 hover:underline">
             Herramientas de diagnóstico
           </Link>
         </div>
