@@ -8,7 +8,7 @@ export function getEnvVariable(key: string, defaultValue = ""): string {
 }
 
 // Variables de entorno para la aplicación
-export const APP_NAME = getEnvVariable("APP_NAME", "Biblioteca de Rituales - Le Droit Humano")
+export const APP_NAME = getEnvVariable("APP_NAME", "Biblioteca de Rituales - Le Droit Humain")
 export const APP_URL = getEnvVariable("APP_URL", "http://localhost:3000")
 
 // Variables de entorno para autenticación

@@ -60,4 +60,4 @@ export const createAdminClient = (cookieStore?: ReturnType<typeof cookies>) => {
 }
 
 // Create Supabase client for server-side operations with admin privileges
-export const supabaseAdmin = createClientBrowser()
+export const supabaseAdmin = createAdminClient()

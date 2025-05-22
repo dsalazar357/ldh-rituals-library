@@ -3,58 +3,6 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import type { Database } from "@/types/database"
 
-// SQL to create the necessary tables
-const createTablesSql = `
--- Create extension for UUID generation if it doesn't exist
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Create users table
-CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  degree INTEGER NOT NULL DEFAULT 1,
-  lodge TEXT,
-  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
-);
-
--- Create rituals table
-CREATE TABLE IF NOT EXISTS public.rituals (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  degree INTEGER NOT NULL,
-  ritual_system TEXT NOT NULL,
-  language TEXT NOT NULL,
-  author TEXT NOT NULL,
-  file_url TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL
-);
-
--- Create function to update updated_at column
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create triggers for updated_at
-DROP TRIGGER IF EXISTS update_users_updated_at ON public.users;
-CREATE TRIGGER update_users_updated_at
-  BEFORE UPDATE ON public.users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_rituals_updated_at ON public.rituals;
-CREATE TRIGGER update_rituals_updated_at
-  BEFORE UPDATE ON public.rituals
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-`
-
 export async function GET() {
   try {
     // Inicializar el cliente de Supabase con las opciones de cookies correctas
@@ -77,13 +25,28 @@ export async function GET() {
       },
     )
 
-    // Step 1: Create tables if they don't exist
-    console.log("Creating tables if they don't exist...")
-    const { error: tablesError } = await supabase.sql(createTablesSql)
+    // Step 1: Create tables if they don't exist - usando RPC en lugar de SQL directo
+    console.log("Verificando si las tablas existen...")
 
-    if (tablesError) {
-      console.error("Error creating tables:", tablesError)
-      return NextResponse.json({ error: `Error creating tables: ${tablesError.message}` }, { status: 500 })
+    // Verificar si la tabla users existe
+    const { data: usersTableExists, error: usersTableError } = await supabase
+      .from("users")
+      .select("id")
+      .limit(1)
+      .maybeSingle()
+
+    if (usersTableError && !usersTableError.message.includes("does not exist")) {
+      console.error("Error verificando tabla users:", usersTableError)
+      return NextResponse.json({ error: `Error verificando tabla users: ${usersTableError.message}` }, { status: 500 })
+    }
+
+    // Si la tabla no existe, no podemos crearla desde el cliente
+    // Esto debería hacerse manualmente o a través de migraciones
+    if (usersTableError && usersTableError.message.includes("does not exist")) {
+      return NextResponse.json(
+        { error: "Las tablas necesarias no existen. Por favor, ejecuta las migraciones primero." },
+        { status: 500 },
+      )
     }
 
     // Step 2: Check if admin already exists in Auth
