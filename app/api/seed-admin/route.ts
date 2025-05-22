@@ -25,7 +25,6 @@ export async function GET() {
       },
     )
 
-    // Step 1: Create tables if they don't exist - usando RPC en lugar de SQL directo
     console.log("Verificando si las tablas existen...")
 
     // Verificar si la tabla users existe
@@ -41,7 +40,6 @@ export async function GET() {
     }
 
     // Si la tabla no existe, no podemos crearla desde el cliente
-    // Esto debería hacerse manualmente o a través de migraciones
     if (usersTableError && usersTableError.message.includes("does not exist")) {
       return NextResponse.json(
         { error: "Las tablas necesarias no existen. Por favor, ejecuta las migraciones primero." },
@@ -49,8 +47,25 @@ export async function GET() {
       )
     }
 
-    // Step 2: Check if admin already exists in Auth
-    console.log("Checking if admin already exists in Auth...")
+    // Verificar si ya existe un usuario admin
+    console.log("Verificando si ya existe un usuario admin...")
+    const { data: existingAdmin, error: adminCheckError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", "admin@ldh.org")
+      .single()
+
+    if (!adminCheckError && existingAdmin) {
+      console.log("Usuario admin ya existe:", existingAdmin)
+      return NextResponse.json({
+        message: "Usuario admin ya existe",
+        user: existingAdmin,
+        note: "Si necesitas resetear la contraseña, elimina el usuario primero",
+      })
+    }
+
+    // Verificar si existe en Auth
+    console.log("Verificando si admin existe en Auth...")
     const { data: authData, error: authError } = await supabase.auth.admin.listUsers()
 
     if (authError) {
@@ -60,9 +75,9 @@ export async function GET() {
 
     const adminAuthUser = authData.users.find((user) => user.email === "admin@ldh.org")
 
-    // Step 3: Delete existing admin user if it exists (to ensure clean state)
+    // Eliminar usuario existente si existe (para limpiar estado)
     if (adminAuthUser) {
-      console.log("Deleting existing admin user from Auth...")
+      console.log("Eliminando usuario admin existente de Auth...")
       const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(adminAuthUser.id)
 
       if (deleteAuthError) {
@@ -73,18 +88,18 @@ export async function GET() {
         )
       }
 
-      // Also delete from users table
-      console.log("Deleting existing admin user from database...")
+      // También eliminar de la tabla users
+      console.log("Eliminando usuario admin existente de la base de datos...")
       const { error: deleteDbError } = await supabase.from("users").delete().eq("email", "admin@ldh.org")
 
       if (deleteDbError) {
         console.error("Error deleting admin user from database:", deleteDbError)
-        // Continue anyway, as the user might not exist in the database
+        // Continuar de todos modos
       }
     }
 
-    // Step 4: Create admin user in Auth
-    console.log("Creating admin user in Auth...")
+    // Crear usuario admin en Auth
+    console.log("Creando usuario admin en Auth...")
     const { data: newAuthUser, error: createAuthError } = await supabase.auth.admin.createUser({
       email: "admin@ldh.org",
       password: "admin123",
@@ -103,8 +118,8 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to create admin user in Auth" }, { status: 500 })
     }
 
-    // Step 5: Create admin user profile in database
-    console.log("Creating admin user profile in database...")
+    // Crear perfil de usuario admin en la base de datos
+    console.log("Creando perfil de usuario admin en la base de datos...")
     const { data: userData, error: userError } = await supabase
       .from("users")
       .insert({
@@ -113,7 +128,7 @@ export async function GET() {
         email: "admin@ldh.org",
         degree: 33,
         lodge: "Admin",
-        role: "admin",
+        role: "admin", // Asegurar que el rol sea admin
       })
       .select()
       .single()
@@ -123,10 +138,20 @@ export async function GET() {
       return NextResponse.json({ error: `Error creating admin user profile: ${userError.message}` }, { status: 500 })
     }
 
+    console.log("Usuario admin creado exitosamente:", userData)
+
     return NextResponse.json({
-      message: "Admin user created successfully",
+      message: "Usuario admin creado exitosamente",
       user: userData,
-      authUser: newAuthUser.user,
+      authUser: {
+        id: newAuthUser.user.id,
+        email: newAuthUser.user.email,
+      },
+      credentials: {
+        email: "admin@ldh.org",
+        password: "admin123",
+        note: "Cambia estas credenciales en producción",
+      },
     })
   } catch (error: any) {
     console.error("Unexpected error:", error)

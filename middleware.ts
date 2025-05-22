@@ -12,7 +12,9 @@ function isExcludedPath(pathname: string): boolean {
     pathname === "/favicon.ico" ||
     pathname === "/auth-debug" ||
     pathname === "/debug" ||
-    pathname.startsWith("/auth-debug/")
+    pathname === "/user-debug" ||
+    pathname.startsWith("/auth-debug/") ||
+    pathname.startsWith("/user-debug/")
   )
 }
 

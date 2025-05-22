@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpen, Home, Upload, Users, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { BookOpen, Home, Upload, Users, LogOut, Menu, X, ChevronLeft, ChevronRight, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/hooks/use-auth"
@@ -31,6 +31,8 @@ export function Sidebar() {
   }
 
   const isAdmin = user?.role === "admin"
+
+  console.log("Sidebar - Usuario:", user?.name, "Rol:", user?.role, "Es Admin:", isAdmin)
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -88,18 +90,27 @@ export function Sidebar() {
       href: "/rituales/nuevo",
       active: pathname === "/rituales/nuevo",
     },
-    ...(isAdmin
-      ? [
-          {
-            label: "Administración",
-            icon: Users,
-            href: "/admin/usuarios",
-            active: pathname === "/admin/usuarios" || pathname.startsWith("/admin/"),
-            adminOnly: true,
-          },
-        ]
-      : []),
   ]
+
+  // Añadir rutas de administración si el usuario es admin
+  if (isAdmin) {
+    routes.push(
+      {
+        label: "Panel Admin",
+        icon: Settings,
+        href: "/admin",
+        active: pathname === "/admin",
+        adminOnly: true,
+      },
+      {
+        label: "Usuarios",
+        icon: Users,
+        href: "/admin/usuarios",
+        active: pathname === "/admin/usuarios" || pathname.startsWith("/admin/usuarios"),
+        adminOnly: true,
+      },
+    )
+  }
 
   return (
     <>
@@ -156,37 +167,42 @@ export function Sidebar() {
             <TooltipProvider delayDuration={0}>
               {routes.map((route) => (
                 <div key={route.href}>
-                  {(!route.adminOnly || isAdmin) &&
-                    (isCollapsed ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link
-                            href={route.href}
-                            onClick={() => setIsOpen(false)}
-                            className={cn(
-                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
-                              route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                              isCollapsed && "justify-center px-2",
-                            )}
-                          >
-                            <route.icon className="h-5 w-5 flex-shrink-0" />
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">{route.label}</TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Link
-                        href={route.href}
-                        onClick={() => setIsOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
-                          route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                        )}
-                      >
-                        <route.icon className="h-5 w-5 flex-shrink-0" />
-                        <span>{route.label}</span>
-                      </Link>
-                    ))}
+                  {isCollapsed ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={route.href}
+                          onClick={() => setIsOpen(false)}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
+                            route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                            isCollapsed && "justify-center px-2",
+                            route.adminOnly && "border-l-2 border-orange-500",
+                          )}
+                        >
+                          <route.icon className="h-5 w-5 flex-shrink-0" />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {route.label}
+                        {route.adminOnly && " (Admin)"}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Link
+                      href={route.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent",
+                        route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                        route.adminOnly && "border-l-2 border-orange-500",
+                      )}
+                    >
+                      <route.icon className="h-5 w-5 flex-shrink-0" />
+                      <span>{route.label}</span>
+                      {route.adminOnly && <span className="text-xs text-orange-600">(Admin)</span>}
+                    </Link>
+                  )}
                 </div>
               ))}
             </TooltipProvider>
@@ -228,6 +244,8 @@ export function Sidebar() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium truncate">{user.name}</p>
                 <p className="text-xs text-muted-foreground">Grado: {user.degree}</p>
+                <p className="text-xs text-muted-foreground">Rol: {user.role}</p>
+                {isAdmin && <p className="text-xs text-orange-600 font-medium">👑 Administrador</p>}
               </div>
             </div>
           )}
