@@ -3,10 +3,12 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase-client"
+import { createClient } from "@supabase/supabase-js"
 import type { User } from "@/types/user"
 import type { Session } from "@supabase/supabase-js"
+
+// Crear cliente de Supabase directamente aquí para evitar problemas de importación
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 type AuthContextType = {
   user: User | null
@@ -16,116 +18,87 @@ type AuthContextType = {
   signOut: () => Promise<void>
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    // Función para obtener el usuario actual
-    const getUser = async () => {
-      try {
-        setIsLoading(true)
+  // Función para cargar el usuario
+  const loadUser = async () => {
+    try {
+      setIsLoading(true)
 
-        // Obtener la sesión actual
-        const {
-          data: { session: currentSession },
-        } = await supabase.auth.getSession()
-        setSession(currentSession)
+      // Obtener sesión actual
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession()
 
-        if (currentSession) {
-          console.log("Sesión encontrada:", currentSession.user.email)
-
-          // Obtener el perfil del usuario
-          const { data: profile, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("id", currentSession.user.id)
-            .single()
-
-          if (error) {
-            console.error("Error al obtener perfil:", error)
-            setUser(null)
-            return
-          }
-
-          if (profile) {
-            setUser({
-              id: profile.id,
-              name: profile.name,
-              email: currentSession.user.email || "",
-              degree: profile.degree,
-              lodge: profile.lodge || undefined,
-              role: profile.role,
-            })
-            console.log("Usuario cargado:", profile.name)
-          } else {
-            setUser(null)
-          }
-        } else {
-          console.log("No hay sesión activa")
-          setUser(null)
-        }
-      } catch (error) {
-        console.error("Error al obtener usuario:", error)
+      // Si no hay sesión, limpiar estado y terminar
+      if (!currentSession) {
         setUser(null)
-      } finally {
-        setIsLoading(false)
+        setSession(null)
+        return
       }
-    }
 
-    // Obtener usuario inicial
-    getUser()
+      // Guardar la sesión
+      setSession(currentSession)
+
+      // Obtener datos del usuario
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", currentSession.user.id)
+        .single()
+
+      if (error || !userData) {
+        console.error("Error al cargar datos del usuario:", error)
+        setUser(null)
+        return
+      }
+
+      // Establecer el usuario
+      setUser({
+        id: userData.id,
+        name: userData.name,
+        email: currentSession.user.email || "",
+        degree: userData.degree,
+        lodge: userData.lodge || undefined,
+        role: userData.role,
+      })
+    } catch (error) {
+      console.error("Error al cargar usuario:", error)
+      setUser(null)
+      setSession(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Cargar usuario al inicio
+  useEffect(() => {
+    loadUser()
 
     // Suscribirse a cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log("Cambio de estado de autenticación:", event)
+    } = supabase.auth.onAuthStateChange(async (event, _session) => {
+      console.log("Evento de autenticación:", event)
 
-      setSession(newSession)
-
-      if (newSession) {
-        // Obtener el perfil del usuario
-        const { data: profile, error } = await supabase.from("users").select("*").eq("id", newSession.user.id).single()
-
-        if (error) {
-          console.error("Error al obtener perfil:", error)
-          setUser(null)
-          return
-        }
-
-        if (profile) {
-          setUser({
-            id: profile.id,
-            name: profile.name,
-            email: newSession.user.email || "",
-            degree: profile.degree,
-            lodge: profile.lodge || undefined,
-            role: profile.role,
-          })
-        } else {
-          setUser(null)
-        }
-      } else {
-        // IMPORTANTE: Limpiar el estado del usuario cuando no hay sesión
-        setUser(null)
-      }
+      // Recargar usuario en cualquier cambio de autenticación
+      await loadUser()
     })
 
-    // Limpiar suscripción
     return () => {
       subscription.unsubscribe()
     }
   }, [])
 
-  // Función para iniciar sesión
+  // Iniciar sesión
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -135,6 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false
       }
 
+      // Recargar usuario después de iniciar sesión
+      await loadUser()
       return true
     } catch (error) {
       console.error("Error inesperado al iniciar sesión:", error)
@@ -142,39 +117,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Función para cerrar sesión
+  // Cerrar sesión
   const signOut = async () => {
     try {
-      console.log("Cerrando sesión...")
-
-      // Limpiar el estado del usuario antes de cerrar sesión
+      // Primero limpiar estado local
       setUser(null)
       setSession(null)
 
-      // Cerrar sesión en Supabase
-      const { error } = await supabase.auth.signOut()
+      // Luego cerrar sesión en Supabase
+      await supabase.auth.signOut()
 
-      if (error) {
-        console.error("Error al cerrar sesión en Supabase:", error)
-      } else {
-        console.log("Sesión cerrada correctamente en Supabase")
-      }
-
-      // Forzar redirección al login
+      // Forzar redirección
       window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
-      // En caso de error, intentar redirección forzada
+      // En caso de error, forzar redirección de todos modos
       window.location.href = "/login"
     }
   }
 
-  return <AuthContext.Provider value={{ user, session, isLoading, signIn, signOut }}>{children}</AuthContext.Provider>
+  const value = {
+    user,
+    session,
+    isLoading,
+    signIn,
+    signOut,
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth debe ser usado dentro de un AuthProvider")
   }
   return context
