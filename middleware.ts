@@ -42,7 +42,7 @@ export async function middleware(req: NextRequest) {
   const isAuthenticated = !!session
 
   // Definir rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/registro"]
+  const publicRoutes = ["/login"]
   const isPublicRoute = publicRoutes.some((route) => req.nextUrl.pathname === route)
 
   // Definir rutas de API que no deben ser bloqueadas
