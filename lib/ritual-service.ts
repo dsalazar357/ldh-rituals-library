@@ -2,10 +2,13 @@ import { supabaseDb } from "@/lib/supabase"
 import { put } from "@vercel/blob"
 import type { Ritual } from "@/types/ritual"
 
-// Verificar si estamos en un entorno de vista previa
-const isPreviewEnvironment =
-  typeof window !== "undefined" &&
-  (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+// Cambia esta línea:
+// const isPreviewEnvironment =
+//   typeof window !== "undefined" &&
+//   (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+
+// Por esta línea para desactivar el modo desarrollo:
+const isPreviewEnvironment = false
 
 // Datos simulados para entornos de vista previa
 const MOCK_RITUALS = [

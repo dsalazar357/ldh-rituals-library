@@ -27,9 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   // Check if we're in a preview environment
-  const isPreviewEnvironment =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+  const isPreviewEnvironment = false
 
   // Only create the Supabase client if we're not in a preview environment
   const supabase = !isPreviewEnvironment ? createClient() : null

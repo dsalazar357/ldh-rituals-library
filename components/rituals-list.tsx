@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Eye, Download, FileIcon, Trash } from "lucide-react"
+import { Eye, Download, FileIcon, Trash, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { useRituals } from "@/hooks/use-rituals"
 import { useRitualsFilter } from "@/hooks/use-rituals-filter"
@@ -17,9 +17,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 // Componente de carga para la lista de rituales
 function RitualsListLoading() {
@@ -53,17 +54,52 @@ function RitualsListLoading() {
 
 // Componente principal de la lista de rituales
 function RitualsListContent() {
-  const { rituals, refetch } = useRituals()
+  const { rituals, refetch, isLoading } = useRituals()
   const { filters } = useRitualsFilter()
   const { user } = useAuth()
   const { handleDelete, isDeleting } = useDeleteRitual()
   const [ritualToDelete, setRitualToDelete] = useState<string | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isAdmin = user?.role === "admin"
 
+  // Manejar errores
+  useEffect(() => {
+    try {
+      // Verificar que tenemos los datos necesarios
+      if (!isLoading && !rituals) {
+        setError("No se pudieron cargar los rituales. Por favor, intenta recargar la página.")
+      } else {
+        setError(null)
+      }
+    } catch (err) {
+      console.error("Error en RitualsList:", err)
+      setError("Ocurrió un error inesperado. Por favor, intenta recargar la página.")
+    }
+  }, [isLoading, rituals])
+
+  // Si hay un error, mostrar un mensaje
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  // Si está cargando, mostrar el componente de carga
+  if (isLoading) {
+    return <RitualsListLoading />
+  }
+
+  // Asegurarse de que rituals es un array
+  const ritualsArray = Array.isArray(rituals) ? rituals : []
+
   // Filtrar rituales por grado del usuario y filtros aplicados
-  let filteredRituals = rituals.filter((ritual) => ritual.degree <= (user?.degree || 0))
+  let filteredRituals = ritualsArray.filter((ritual) => ritual.degree <= (user?.degree || 0))
 
   // Aplicar filtros adicionales
   if (filters.degree) {

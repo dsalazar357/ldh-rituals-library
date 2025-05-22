@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     console.log(`Attempting to log in with email: ${email}`)
 
     // For preview/development environment, use a direct check for admin credentials
-    if (email === "admin@ldh.org" && password === "admin123") {
+    if (false && email === "admin@ldh.org" && password === "admin123") {
       console.log("Using direct admin authentication for preview environment")
 
       // Create a mock session

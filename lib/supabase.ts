@@ -11,10 +11,7 @@ const PREVIEW_SERVICE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdXB0cHBsZnZpaWZyYndtbXR2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY1NDAyNjk5MiwiZXhwIjoxOTY5NjAyOTkyfQ.Pr-ryri3P5Ot3AQYtTwXKf65H83Jlvs0Apj_0SrRVsg"
 
 // Check if we're in a preview environment
-const isPreviewEnvironment =
-  typeof window !== "undefined"
-    ? window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app")
-    : !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === ""
+const isPreviewEnvironment = false
 
 // Get environment variables with fallbacks
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || PREVIEW_SUPABASE_URL

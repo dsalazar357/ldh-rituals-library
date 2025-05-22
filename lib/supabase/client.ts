@@ -1,13 +1,21 @@
 import { createBrowserClient } from "@supabase/ssr"
 import type { Database } from "@/types/database"
+// Importa la función
+import { isProductionMode } from "@/lib/env"
 
 // Default values for preview environment
 const PREVIEW_SUPABASE_URL = "https://example.supabase.co"
 const PREVIEW_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdXB0cHBsZnZpaWZyYndtbXR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTQwMjY5OTIsImV4cCI6MTk2OTYwMjk5Mn0.z2CN0mvO2No8wSi46Gw59VR2RHwVXRXrHQJ3Fbyl69M"
 
-// Check if we're in a preview environment
+// Cambia esta línea:
+// const isPreviewEnvironment =
+//   typeof window !== "undefined" &&
+//   (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+
+// Por esta línea:
 const isPreviewEnvironment =
+  !isProductionMode() &&
   typeof window !== "undefined" &&
   (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
 

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button"
 import { useRitualsFilter } from "@/hooks/use-rituals-filter"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Suspense } from "react"
+import { Suspense, useState, useEffect } from "react"
 
 // Componente de carga para los filtros
 function RitualsFiltersLoading() {
@@ -49,6 +49,17 @@ function RitualsFiltersLoading() {
 // Componente principal de filtros
 function RitualsFiltersContent() {
   const { filters, setFilters, resetFilters } = useRitualsFilter()
+  const [mounted, setMounted] = useState(false)
+
+  // Asegurarse de que el componente está montado antes de renderizar
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Si no está montado, mostrar el esqueleto
+  if (!mounted) {
+    return <RitualsFiltersLoading />
+  }
 
   const ritualSystems = ["Escocés", "Francés", "Emulación", "York"]
   const languages = ["Español", "Inglés", "Francés", "Portugués"]
@@ -90,7 +101,7 @@ function RitualsFiltersContent() {
               <SelectValue placeholder="Todos los grados" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Todos los grados</SelectItem>
+              <SelectItem value="all">Todos los grados</SelectItem>
               <SelectItem value="1">Grado 1</SelectItem>
               <SelectItem value="2">Grado 2</SelectItem>
               <SelectItem value="3">Grado 3</SelectItem>
@@ -108,7 +119,7 @@ function RitualsFiltersContent() {
               <SelectValue placeholder="Todos los ritos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Todos los ritos</SelectItem>
+              <SelectItem value="all">Todos los ritos</SelectItem>
               {ritualSystems.map((system) => (
                 <SelectItem key={system} value={system}>
                   {system}
@@ -128,7 +139,7 @@ function RitualsFiltersContent() {
               <SelectValue placeholder="Todos los idiomas" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Todos los idiomas</SelectItem>
+              <SelectItem value="all">Todos los idiomas</SelectItem>
               {languages.map((language) => (
                 <SelectItem key={language} value={language}>
                   {language}

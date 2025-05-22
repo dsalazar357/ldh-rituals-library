@@ -7,14 +7,17 @@ import { getRituals } from "@/lib/ritual-service"
 export function useRituals() {
   const [rituals, setRituals] = useState<Ritual[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   const fetchRituals = useCallback(async () => {
     try {
       setIsLoading(true)
+      setError(null)
       const data = await getRituals()
       setRituals(data)
-    } catch (error) {
-      console.error("Error fetching rituals:", error)
+    } catch (err) {
+      console.error("Error fetching rituals:", err)
+      setError(err instanceof Error ? err : new Error("Error desconocido al cargar rituales"))
     } finally {
       setIsLoading(false)
     }
@@ -24,5 +27,5 @@ export function useRituals() {
     fetchRituals()
   }, [fetchRituals])
 
-  return { rituals, isLoading, refetch: fetchRituals }
+  return { rituals, isLoading, error, refetch: fetchRituals }
 }
