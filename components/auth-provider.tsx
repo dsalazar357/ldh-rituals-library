@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (error) {
             console.error("Error al obtener perfil:", error)
+            setUser(null)
             return
           }
 
@@ -61,6 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               role: profile.role,
             })
             console.log("Usuario cargado:", profile.name)
+          } else {
+            setUser(null)
           }
         } else {
           console.log("No hay sesión activa")
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error("Error al obtener usuario:", error)
+        setUser(null)
       } finally {
         setIsLoading(false)
       }
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (error) {
           console.error("Error al obtener perfil:", error)
+          setUser(null)
           return
         }
 
@@ -102,8 +107,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             lodge: profile.lodge || undefined,
             role: profile.role,
           })
+        } else {
+          setUser(null)
         }
       } else {
+        // IMPORTANTE: Limpiar el estado del usuario cuando no hay sesión
         setUser(null)
       }
     })
@@ -137,10 +145,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Función para cerrar sesión
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
-      router.push("/login")
+      console.log("Cerrando sesión...")
+
+      // Limpiar el estado del usuario antes de cerrar sesión
+      setUser(null)
+      setSession(null)
+
+      // Cerrar sesión en Supabase
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error("Error al cerrar sesión en Supabase:", error)
+      } else {
+        console.log("Sesión cerrada correctamente en Supabase")
+      }
+
+      // Forzar redirección al login
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
+      // En caso de error, intentar redirección forzada
+      window.location.href = "/login"
     }
   }
 
