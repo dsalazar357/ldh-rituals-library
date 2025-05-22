@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabase"
 import { cookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
+import type { Database } from "@/types/database"
 
 export async function POST(request: Request) {
   try {
@@ -63,7 +64,28 @@ export async function POST(request: Request) {
 
     // For other users, try Supabase Auth
     console.log("Attempting Supabase Auth login")
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+
+    // Inicializar el cliente de Supabase con las opciones de cookies correctas
+    const cookieStore = cookies()
+    const supabase = createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: { path: string; domain?: string }) {
+            cookieStore.set({ name, value: "", ...options, maxAge: 0 })
+          },
+        },
+      },
+    )
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -79,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     // Get user profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabase
       .from("users")
       .select("*")
       .eq("id", data.user.id)
@@ -89,17 +111,6 @@ export async function POST(request: Request) {
       console.error("Error getting user profile:", profileError)
       return NextResponse.json({ error: "Error getting user profile" }, { status: 500 })
     }
-
-    // Set auth cookies
-    const cookieStore = cookies()
-    cookieStore.set("sb-access-token", data.session.access_token, {
-      path: "/",
-      maxAge: data.session.expires_in,
-    })
-    cookieStore.set("sb-refresh-token", data.session.refresh_token, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    })
 
     return NextResponse.json({
       user: {

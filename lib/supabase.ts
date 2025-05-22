@@ -1,7 +1,7 @@
 import { createClient as createClientBrowser } from "@/lib/supabase/client"
 import { createServerClient } from "@supabase/ssr"
 import type { Database } from "@/types/database"
-import type { cookies } from "next/headers"
+import { cookies } from "next/headers"
 
 // Default values for preview environment
 const PREVIEW_SUPABASE_URL = "https://example.supabase.co"
@@ -27,15 +27,46 @@ export const supabaseDb = createClientBrowser()
 // Create Supabase client for auth operations
 export const supabaseAuth = createClientBrowser()
 
+// Función para crear el cliente de Supabase Admin
+export const createAdminClient = () => {
+  if (isPreviewEnvironment) {
+    console.log("Using mock Supabase client for preview environment")
+    return createClientBrowser()
+  }
+
+  try {
+    // En el servidor, necesitamos usar createServerClient con opciones de cookies
+    if (typeof window === "undefined") {
+      const cookieStore = cookies()
+      return createServerClient(supabaseUrl, supabaseServiceKey, {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value
+          },
+          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove(name: string, options: { path: string; domain?: string }) {
+            cookieStore.set({ name, value: "", ...options, maxAge: 0 })
+          },
+        },
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      })
+    }
+
+    // En el cliente, usamos el cliente simulado
+    return createClientBrowser()
+  } catch (error) {
+    console.error("Error creating Supabase admin client:", error)
+    return createClientBrowser()
+  }
+}
+
 // Create Supabase client for server-side operations with admin privileges
-export const supabaseAdmin = isPreviewEnvironment
-  ? createClientBrowser()
-  : createServerClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
+export const supabaseAdmin = createAdminClient()
 
 // Function to create a server client with cookies
 export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
