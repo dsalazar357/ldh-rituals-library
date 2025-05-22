@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,26 +13,35 @@ import Link from "next/link"
 import { getSupabaseClient } from "@/lib/supabase-singleton"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginSuccess, setLoginSuccess] = useState(false)
+  const sessionCheckedRef = useRef(false)
 
-  // Verificar si ya hay una sesión activa al cargar
+  // Verificar si ya hay una sesión activa al cargar (solo una vez)
   useEffect(() => {
-    const checkSession = async () => {
-      const supabase = getSupabaseClient()
-      const { data } = await supabase.auth.getSession()
+    if (sessionCheckedRef.current) return
 
-      if (data.session) {
-        console.log("Sesión existente encontrada, redirigiendo...")
-        window.location.href = "/"
+    const checkSession = async () => {
+      try {
+        sessionCheckedRef.current = true
+        const supabase = getSupabaseClient()
+        const { data } = await supabase.auth.getSession()
+
+        if (data.session) {
+          console.log("Sesión existente encontrada, redirigiendo...")
+          router.push("/")
+        }
+      } catch (error) {
+        console.error("Error al verificar sesión:", error)
       }
     }
 
     checkSession()
-  }, [])
+  }, [router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,11 +69,8 @@ export default function LoginPage() {
         console.log("Sesión iniciada correctamente")
         setLoginSuccess(true)
 
-        // Esperar un momento para que se establezcan las cookies
-        setTimeout(() => {
-          // Forzar recarga completa para asegurar que se apliquen las cookies
-          window.location.href = "/"
-        }, 1000)
+        // Usar router.push en lugar de window.location para evitar recargas
+        router.push("/")
       } else {
         setError("No se pudo iniciar sesión. Inténtalo de nuevo.")
         setIsLoading(false)

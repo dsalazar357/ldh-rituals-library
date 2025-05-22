@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 import type { User } from "@/types/user"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseClient } from "@/lib/supabase-singleton"
@@ -19,7 +19,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [initialized, setInitialized] = useState(false)
+  const initializedRef = useRef(false)
+  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null)
 
   // Memoizar la función signOut para evitar re-renders
   const signOut = useCallback(async () => {
@@ -62,10 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Efecto para inicializar la autenticación (solo se ejecuta una vez)
   useEffect(() => {
-    if (initialized) return
+    if (initializedRef.current) return
+    initializedRef.current = true
 
     const initializeAuth = async () => {
       try {
+        setIsLoading(true)
         const supabase = getSupabaseClient()
 
         // Obtener sesión actual
@@ -77,43 +80,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(userData)
         }
 
-        setInitialized(true)
-        setIsLoading(false)
+        // Suscribirse a cambios de autenticación
+        const { data } = supabase.auth.onAuthStateChange(async (event, _session) => {
+          console.log("Evento de autenticación:", event)
+
+          if (event === "SIGNED_IN" && _session) {
+            setSession(_session)
+            const userData = await loadUserData(_session.user.id, _session.user.email || "")
+            setUser(userData)
+          } else if (event === "SIGNED_OUT") {
+            setUser(null)
+            setSession(null)
+          }
+        })
+
+        // Guardar la suscripción para limpiarla después
+        authSubscriptionRef.current = data.subscription
       } catch (error) {
         console.error("Error al inicializar autenticación:", error)
-        setInitialized(true)
+      } finally {
         setIsLoading(false)
       }
     }
 
     initializeAuth()
-  }, [initialized, loadUserData])
 
-  // Efecto para suscribirse a cambios de autenticación (solo se ejecuta una vez)
-  useEffect(() => {
-    if (!initialized) return
-
-    const supabase = getSupabaseClient()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, _session) => {
-      console.log("Evento de autenticación:", event)
-
-      if (event === "SIGNED_IN" && _session) {
-        setSession(_session)
-        const userData = await loadUserData(_session.user.id, _session.user.email || "")
-        setUser(userData)
-      } else if (event === "SIGNED_OUT") {
-        setUser(null)
-        setSession(null)
-      }
-    })
-
+    // Limpiar suscripción al desmontar
     return () => {
-      subscription.unsubscribe()
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe()
+      }
     }
-  }, [initialized, loadUserData])
+  }, [loadUserData])
 
   const value = {
     user,

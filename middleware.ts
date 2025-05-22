@@ -2,7 +2,23 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
+// Función para verificar si una URL está en la lista de excepciones
+function isExcludedPath(pathname: string): boolean {
+  // Rutas que no requieren verificación
+  return (
+    pathname.startsWith("/_next/") ||
+    pathname.includes(".") ||
+    pathname.startsWith("/api/") ||
+    pathname === "/favicon.ico"
+  )
+}
+
 export async function middleware(req: NextRequest) {
+  // Evitar procesar rutas estáticas y API
+  if (isExcludedPath(req.nextUrl.pathname)) {
+    return NextResponse.next()
+  }
+
   const res = NextResponse.next()
   const pathname = req.nextUrl.pathname
 
@@ -14,8 +30,8 @@ export async function middleware(req: NextRequest) {
   const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin", "/api/debug"]
   const isApiRoute = apiRoutes.some((route) => pathname.startsWith(route))
 
-  // Permitir acceso a rutas de API y recursos estáticos sin verificación
-  if (isApiRoute || pathname.startsWith("/_next/") || pathname.includes(".")) {
+  // Permitir acceso a rutas de API sin verificación
+  if (isApiRoute) {
     return res
   }
 
@@ -54,13 +70,15 @@ export async function middleware(req: NextRequest) {
 
     // Si no hay sesión y la ruta no es pública, redirigir a login
     if (!session && !isPublicRoute) {
-      console.log(`Middleware: Redirigiendo a login desde ${pathname} (no hay sesión)`)
-      return NextResponse.redirect(new URL("/login", req.url))
+      const url = new URL("/login", req.url)
+      // Evitar bucles de redirección añadiendo un parámetro
+      url.searchParams.set("redirect", encodeURIComponent(pathname))
+      return NextResponse.redirect(url)
     }
 
     // Si hay sesión y la ruta es pública (como /login), redirigir al dashboard
+    // Pero solo si no estamos en /debug
     if (session && isPublicRoute && pathname !== "/debug") {
-      console.log(`Middleware: Redirigiendo a dashboard desde ${pathname} (sesión activa)`)
       return NextResponse.redirect(new URL("/", req.url))
     }
 
