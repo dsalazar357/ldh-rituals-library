@@ -14,8 +14,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const { state, toggle, isOpen, setIsOpen } = useSidebar()
   const isCollapsed = state === "collapsed"
 
@@ -33,13 +34,38 @@ export function Sidebar() {
 
   const handleSignOut = async (e: React.MouseEvent) => {
     e.preventDefault()
-    console.log("Botón de cierre de sesión clickeado")
+
+    if (isLoggingOut) return
+
     try {
-      await signOut()
+      setIsLoggingOut(true)
+      console.log("Iniciando cierre de sesión desde sidebar")
+
+      // Llamar a la API de cierre de sesión
+      const response = await fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.error("Error al cerrar sesión:", data.error)
+        throw new Error(data.error || "Error al cerrar sesión")
+      }
+
+      console.log("Sesión cerrada correctamente, redirigiendo...")
+
+      // Redireccionar al login
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       // Redirección de respaldo en caso de error
       window.location.href = "/login"
+    } finally {
+      setIsLoggingOut(false)
     }
   }
 
@@ -169,16 +195,26 @@ export function Sidebar() {
               {isCollapsed ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-center px-2" onClick={handleSignOut}>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-center px-2"
+                      onClick={handleSignOut}
+                      disabled={isLoggingOut}
+                    >
                       <LogOut className="h-5 w-5 flex-shrink-0" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">Cerrar Sesión</TooltipContent>
                 </Tooltip>
               ) : (
-                <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={handleSignOut}
+                  disabled={isLoggingOut}
+                >
                   <LogOut className="h-5 w-5 flex-shrink-0" />
-                  <span className="ml-2">Cerrar Sesión</span>
+                  <span className="ml-2">{isLoggingOut ? "Cerrando sesión..." : "Cerrar Sesión"}</span>
                 </Button>
               )}
             </TooltipProvider>

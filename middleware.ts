@@ -42,8 +42,17 @@ export async function middleware(req: NextRequest) {
   const isAuthenticated = !!session
 
   // Definir rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/registro", "/api/login", "/api/seed-admin"]
-  const isPublicRoute = publicRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+  const publicRoutes = ["/login", "/registro"]
+  const isPublicRoute = publicRoutes.some((route) => req.nextUrl.pathname === route)
+
+  // Definir rutas de API que no deben ser bloqueadas
+  const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin"]
+  const isApiRoute = apiRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+
+  // Si es una ruta de API, permitir el acceso sin verificar autenticación
+  if (isApiRoute) {
+    return res
+  }
 
   // Si no hay sesión y el usuario está tratando de acceder a una ruta protegida
   if (!isAuthenticated && !isPublicRoute) {
@@ -53,7 +62,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Si hay una sesión y el usuario está tratando de acceder a una ruta de autenticación
-  if (isAuthenticated && isPublicRoute && !req.nextUrl.pathname.startsWith("/api/")) {
+  if (isAuthenticated && isPublicRoute) {
     console.log(`Redirigiendo a dashboard desde ${req.nextUrl.pathname} - Ya autenticado`)
     const redirectUrl = new URL("/", req.url)
     return NextResponse.redirect(redirectUrl)
