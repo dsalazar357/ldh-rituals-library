@@ -13,8 +13,22 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
-  const { state, toggle, isOpen, setIsOpen } = useSidebar()
   const [isMounted, setIsMounted] = useState(false)
+  const [sidebarState, setSidebarState] = useState(() => {
+    try {
+      return useSidebar()
+    } catch (error) {
+      console.error("Error using sidebar context:", error)
+      return {
+        state: "expanded" as const,
+        toggle: () => {},
+        isOpen: false,
+        setIsOpen: () => {},
+      }
+    }
+  })
+
+  const { state, toggle, isOpen, setIsOpen } = sidebarState
 
   // Marcar como montado para evitar problemas de hidratación
   useEffect(() => {

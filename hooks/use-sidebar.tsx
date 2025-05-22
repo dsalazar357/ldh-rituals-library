@@ -13,7 +13,15 @@ interface SidebarContextType {
   setIsOpen: (open: boolean) => void
 }
 
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined)
+// Valores por defecto para el contexto
+const defaultContextValue: SidebarContextType = {
+  state: "expanded",
+  toggle: () => {},
+  isOpen: false,
+  setIsOpen: () => {},
+}
+
+const SidebarContext = createContext<SidebarContextType>(defaultContextValue)
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<SidebarState>("expanded")
@@ -76,18 +84,12 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => (prev === "expanded" ? "collapsed" : "expanded"))
   }
 
-  // Solo proporcionar el contexto si el componente está montado
-  if (!isMounted) {
-    return <>{children}</>
-  }
+  // Usar valores por defecto durante el prerendering
+  const contextValue = isMounted ? { state, toggle, isOpen, setIsOpen } : defaultContextValue
 
-  return <SidebarContext.Provider value={{ state, toggle, isOpen, setIsOpen }}>{children}</SidebarContext.Provider>
+  return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
 }
 
 export function useSidebar() {
-  const context = useContext(SidebarContext)
-  if (context === undefined) {
-    throw new Error("useSidebar must be used within a SidebarProvider")
-  }
-  return context
+  return useContext(SidebarContext)
 }
