@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!currentSession) {
         setUser(null)
         setSession(null)
+        setIsLoading(false)
         return
       }
 
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error || !userData) {
         console.error("Error al cargar datos del usuario:", error)
         setUser(null)
+        setIsLoading(false)
         return
       }
 
@@ -98,13 +100,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Iniciar sesión
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) {
         console.error("Error al iniciar sesión:", error)
+        return false
+      }
+
+      if (!data.session) {
+        console.error("No se recibió sesión después de iniciar sesión")
         return false
       }
 

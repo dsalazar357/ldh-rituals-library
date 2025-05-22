@@ -4,8 +4,10 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth-provider"
-import { supabase } from "@/lib/supabase-client"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { createClient } from "@supabase/supabase-js"
+
+// Cliente de Supabase para verificaciones
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export function SessionDebug() {
   const { user, session, isLoading } = useAuth()
@@ -53,28 +55,8 @@ export function SessionDebug() {
     }
   }
 
-  const clearCookies = () => {
-    try {
-      // Limpiar todas las cookies
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
-      })
-      setStatusMessage("Cookies limpiadas. Recarga la página para ver los cambios.")
-    } catch (error) {
-      console.error("Error al limpiar cookies:", error)
-      setStatusMessage(`Error al limpiar cookies: ${error instanceof Error ? error.message : "Desconocido"}`)
-    }
-  }
-
-  const listCookies = () => {
-    try {
-      const cookies = document.cookie.split(";").map((cookie) => cookie.trim())
-      console.log("Cookies actuales:", cookies)
-      setStatusMessage(`${cookies.length} cookies encontradas. Ver consola para detalles.`)
-    } catch (error) {
-      console.error("Error al listar cookies:", error)
-      setStatusMessage(`Error al listar cookies: ${error instanceof Error ? error.message : "Desconocido"}`)
-    }
+  const forceReload = () => {
+    window.location.reload()
   }
 
   return (
@@ -84,25 +66,22 @@ export function SessionDebug() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Button onClick={checkSession} disabled={isChecking}>
               Verificar Sesión
             </Button>
             <Button onClick={refreshSession} disabled={isChecking}>
               Refrescar Sesión
             </Button>
-            <Button onClick={listCookies} variant="outline">
-              Listar Cookies
-            </Button>
-            <Button onClick={clearCookies} variant="destructive">
-              Limpiar Cookies
+            <Button onClick={forceReload} variant="outline">
+              Recargar Página
             </Button>
           </div>
 
           {statusMessage && (
-            <Alert>
-              <AlertDescription>{statusMessage}</AlertDescription>
-            </Alert>
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
+              {statusMessage}
+            </div>
           )}
 
           <div className="space-y-2">

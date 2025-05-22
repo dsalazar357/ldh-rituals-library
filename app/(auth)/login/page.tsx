@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,14 +10,22 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase-client"
+import { useAuth } from "@/components/auth-provider"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { signIn, user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+
+  // Redireccionar si ya está autenticado
+  useEffect(() => {
+    if (user) {
+      router.push("/")
+    }
+  }, [user, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,22 +33,15 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Iniciar sesión directamente con Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      // Iniciar sesión
+      const success = await signIn(email, password)
 
-      if (error) {
-        console.error("Error al iniciar sesión:", error.message)
-        setError(`Error de autenticación: ${error.message}`)
-        return
-      }
-
-      if (data.session) {
-        console.log("Sesión iniciada correctamente")
+      if (success) {
+        console.log("Inicio de sesión exitoso, redirigiendo...")
+        // Redirección explícita
         router.push("/")
-        router.refresh()
+      } else {
+        setError("Credenciales incorrectas. Por favor, inténtalo de nuevo.")
       }
     } catch (error: any) {
       console.error("Error inesperado:", error)
