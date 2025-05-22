@@ -10,39 +10,26 @@ import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
-import { getSupabaseClient } from "@/lib/supabase-singleton"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { signIn, user, isLoading: authLoading } = useAuth()
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginSuccess, setLoginSuccess] = useState(false)
-  const sessionCheckedRef = useRef(false)
   const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Verificar si ya hay una sesión activa al cargar (solo una vez)
+  // Verificar si ya hay una sesión activa
   useEffect(() => {
-    if (sessionCheckedRef.current) return
-
-    const checkSession = async () => {
-      try {
-        sessionCheckedRef.current = true
-        const supabase = getSupabaseClient()
-        const { data } = await supabase.auth.getSession()
-
-        if (data.session) {
-          console.log("Sesión existente encontrada, redirigiendo...")
-          router.push("/")
-        }
-      } catch (error) {
-        console.error("Error al verificar sesión:", error)
-      }
+    if (user) {
+      console.log("Usuario ya autenticado, redirigiendo...")
+      router.push("/")
     }
-
-    checkSession()
-  }, [router])
+  }, [user, router])
 
   // Limpiar el timeout al desmontar el componente
   useEffect(() => {
@@ -60,42 +47,20 @@ export default function LoginPage() {
 
     try {
       console.log("Intentando iniciar sesión con:", email)
-      const supabase = getSupabaseClient()
 
-      // Iniciar sesión
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const success = await signIn(email, password)
 
-      if (error) {
-        console.error("Error al iniciar sesión:", error.message)
-        setError(`Error de autenticación: ${error.message}`)
-        setIsLoading(false)
-        return
-      }
-
-      if (data.session) {
+      if (success) {
         console.log("Sesión iniciada correctamente")
         setLoginSuccess(true)
 
         // Forzar redirección después de un breve retraso
         redirectTimeoutRef.current = setTimeout(() => {
           console.log("Ejecutando redirección forzada...")
-
-          // Intentar primero con router.push
-          router.push("/")
-
-          // Como respaldo, usar window.location después de un breve retraso
-          setTimeout(() => {
-            if (document.location.pathname === "/login") {
-              console.log("Redirección con router.push no funcionó, usando window.location...")
-              window.location.href = "/"
-            }
-          }, 500)
+          window.location.href = "/"
         }, 1500)
       } else {
-        setError("No se pudo iniciar sesión. Inténtalo de nuevo.")
+        setError("Credenciales incorrectas. Por favor, inténtalo de nuevo.")
         setIsLoading(false)
       }
     } catch (error: any) {
@@ -151,7 +116,7 @@ export default function LoginPage() {
               disabled={isLoading || loginSuccess}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading || loginSuccess}>
+          <Button type="submit" className="w-full" disabled={isLoading || loginSuccess || authLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

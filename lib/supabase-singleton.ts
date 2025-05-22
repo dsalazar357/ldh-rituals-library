@@ -27,6 +27,7 @@ export function getSupabaseClient() {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true,
+          storageKey: "supabase_auth_token",
         },
       },
     )

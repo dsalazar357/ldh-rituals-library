@@ -61,6 +61,9 @@ export async function middleware(req: NextRequest) {
     const { data } = await supabase.auth.getSession()
     const session = data?.session
 
+    // Imprimir información de depuración
+    console.log(`Middleware: Ruta=${pathname}, Sesión=${session ? "Activa" : "Inactiva"}, Pública=${isPublicRoute}`)
+
     // Si no hay sesión y la ruta no es pública, redirigir a login
     if (!session && !isPublicRoute) {
       console.log(`Middleware: Redirigiendo a login desde ${pathname} (no hay sesión)`)

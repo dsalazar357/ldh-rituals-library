@@ -4,14 +4,21 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { getSupabaseClient } from "@/lib/supabase-singleton"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function AuthDebugPage() {
+  const { user, session, isLoading: authLoading } = useAuth()
   const [sessionInfo, setSessionInfo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [cookieInfo, setCookieInfo] = useState<string[]>([])
 
   useEffect(() => {
     checkSession()
+    // Obtener información de cookies
+    if (typeof document !== "undefined") {
+      setCookieInfo(document.cookie.split(";").map((c) => c.trim()))
+    }
   }, [])
 
   const checkSession = async () => {
@@ -41,6 +48,7 @@ export default function AuthDebugPage() {
       setSessionInfo(null)
       // No redirigir, solo actualizar el estado
       checkSession()
+      window.location.reload()
     } catch (err: any) {
       setError(err.message || "Error al cerrar sesión")
     }
@@ -51,10 +59,30 @@ export default function AuthDebugPage() {
       document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
     })
     alert("Cookies eliminadas. Recarga la página para ver los cambios.")
+    window.location.reload()
   }
 
   const forceRedirect = (path: string) => {
     window.location.href = path
+  }
+
+  const refreshSession = async () => {
+    try {
+      setLoading(true)
+      const supabase = getSupabaseClient()
+      const { data, error } = await supabase.auth.refreshSession()
+
+      if (error) {
+        setError(`Error al refrescar sesión: ${error.message}`)
+      } else {
+        setSessionInfo(data)
+        alert("Sesión refrescada correctamente")
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al refrescar sesión")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -65,9 +93,12 @@ export default function AuthDebugPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <Button onClick={checkSession} disabled={loading}>
                 {loading ? "Verificando..." : "Verificar Sesión"}
+              </Button>
+              <Button onClick={refreshSession} variant="outline" disabled={loading}>
+                Refrescar Sesión
               </Button>
               <Button onClick={clearSession} variant="outline">
                 Cerrar Sesión
@@ -84,14 +115,53 @@ export default function AuthDebugPage() {
               </div>
             )}
 
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+              <h3 className="font-medium mb-2">Estado de AuthProvider:</h3>
+              <p>
+                <strong>Cargando:</strong> {authLoading ? "Sí" : "No"}
+              </p>
+              <p>
+                <strong>Usuario:</strong> {user ? user.name : "No autenticado"}
+              </p>
+              <p>
+                <strong>Email:</strong> {user ? user.email : "N/A"}
+              </p>
+              <p>
+                <strong>Rol:</strong> {user ? user.role : "N/A"}
+              </p>
+              <p>
+                <strong>Sesión activa:</strong> {session ? "Sí" : "No"}
+              </p>
+              {session && (
+                <p>
+                  <strong>Expira:</strong> {new Date(session.expires_at! * 1000).toLocaleString()}
+                </p>
+              )}
+            </div>
+
             {sessionInfo && (
               <div>
-                <h3 className="font-medium mb-2">Información de sesión:</h3>
+                <h3 className="font-medium mb-2">Información de sesión (getSession):</h3>
                 <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto max-h-96">
                   <pre className="text-xs">{JSON.stringify(sessionInfo, null, 2)}</pre>
                 </div>
               </div>
             )}
+
+            <div>
+              <h3 className="font-medium mb-2">Cookies ({cookieInfo.length}):</h3>
+              <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto max-h-40">
+                {cookieInfo.length > 0 ? (
+                  <ul className="text-xs space-y-1">
+                    {cookieInfo.map((cookie, index) => (
+                      <li key={index}>{cookie}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs">No hay cookies</p>
+                )}
+              </div>
+            </div>
 
             <div className="mt-4">
               <h3 className="font-medium mb-2">Redirección manual:</h3>
@@ -110,10 +180,6 @@ export default function AuthDebugPage() {
               </p>
               <p>
                 <strong>Ruta:</strong> {typeof window !== "undefined" ? window.location.pathname : "No disponible"}
-              </p>
-              <p>
-                <strong>Cookies:</strong>{" "}
-                {typeof document !== "undefined" ? document.cookie.split(";").length : "No disponible"}
               </p>
             </div>
           </div>
