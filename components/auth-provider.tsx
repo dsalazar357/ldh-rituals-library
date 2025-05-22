@@ -135,7 +135,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push("/")
     }
 
-    // Don't automatically redirect to login - let the middleware handle that
+    // Redirect to login if not authenticated and not on an auth route
+    if (!user && !isAuthRoute && !isLoading) {
+      router.push("/login")
+    }
   }, [user, isLoading, pathname, router])
 
   const signIn = async (email: string, password: string) => {
@@ -215,9 +218,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log("Sesión cerrada correctamente, redirigiendo...")
 
-      // Redirige a la página de login usando router en lugar de window.location
-      // para evitar una recarga completa de la página
-      router.push("/login")
+      // Usar window.location.href para forzar una recarga completa y asegurar
+      // que todas las cookies y el estado de autenticación se limpien correctamente
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       // Forzar redirección en caso de error

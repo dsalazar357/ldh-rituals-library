@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -14,8 +16,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
-  const sidebarState = useSidebar()
-  const { state, toggle, isOpen, setIsOpen } = sidebarState
+  const { state, toggle, isOpen, setIsOpen } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
   // Marcar como montado para evitar problemas de hidratación
   useEffect(() => {
@@ -28,7 +30,18 @@ export function Sidebar() {
   }
 
   const isAdmin = user?.role === "admin"
-  const isCollapsed = state === "collapsed"
+
+  const handleSignOut = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    console.log("Botón de cierre de sesión clickeado")
+    try {
+      await signOut()
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error)
+      // Redirección de respaldo en caso de error
+      window.location.href = "/login"
+    }
+  }
 
   const routes = [
     {
@@ -41,7 +54,7 @@ export function Sidebar() {
       label: "Rituales",
       icon: BookOpen,
       href: "/rituales",
-      active: pathname === "/rituales",
+      active: pathname === "/rituales" || pathname.startsWith("/rituales/"),
     },
     {
       label: "Subir Ritual",
@@ -55,7 +68,7 @@ export function Sidebar() {
             label: "Usuarios",
             icon: Users,
             href: "/admin/usuarios",
-            active: pathname === "/admin/usuarios",
+            active: pathname === "/admin/usuarios" || pathname.startsWith("/admin/"),
           },
         ]
       : []),
@@ -105,10 +118,7 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               className="hidden md:flex"
-              onClick={() => {
-                console.log("Botón toggle sidebar clickeado")
-                toggle()
-              }}
+              onClick={toggle}
               title={isCollapsed ? "Expandir" : "Colapsar"}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -159,30 +169,14 @@ export function Sidebar() {
               {isCollapsed ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-center px-2"
-                      onClick={() => {
-                        console.log("Botón de cierre de sesión clickeado")
-                        // Llamar directamente a signOut sin pasar por setIsOpen
-                        signOut()
-                      }}
-                    >
+                    <Button variant="ghost" className="w-full justify-center px-2" onClick={handleSignOut}>
                       <LogOut className="h-5 w-5 flex-shrink-0" />
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="right">Cerrar Sesión</TooltipContent>
                 </Tooltip>
               ) : (
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    console.log("Botón de cierre de sesión clickeado")
-                    // Llamar directamente a signOut sin pasar por setIsOpen
-                    signOut()
-                  }}
-                >
+                <Button variant="ghost" className="w-full justify-start" onClick={handleSignOut}>
                   <LogOut className="h-5 w-5 flex-shrink-0" />
                   <span className="ml-2">Cerrar Sesión</span>
                 </Button>
