@@ -45,7 +45,7 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        console.log("Sesión iniciada correctamente, redirigiendo...")
+        console.log("Sesión iniciada correctamente, redirigiendo...", data.session)
         setDebugInfo(
           JSON.stringify({
             user_id: data.user?.id,
@@ -54,11 +54,10 @@ export default function LoginPage() {
           }),
         )
 
-        // Pequeña pausa para mostrar el mensaje de éxito
-        setTimeout(() => {
-          // Redirección directa sin usar router
-          window.location.href = "/"
-        }, 1000)
+        // Redirección inmediata sin setTimeout
+        console.log("Redirigiendo a la página principal...")
+        window.location.href = "/"
+        return // Aseguramos que no se ejecute más código después de la redirección
       } else {
         setError("No se pudo iniciar sesión. Inténtalo de nuevo.")
         setIsLoading(false)
