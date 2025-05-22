@@ -2,7 +2,7 @@ import { Suspense } from "react"
 import { RitualsHeader } from "@/components/rituals-header"
 import { RitualsList } from "@/components/rituals-list"
 import { RitualsFilters } from "@/components/rituals-filters"
-import { Skeleton } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function RitualsPage() {
   return (
