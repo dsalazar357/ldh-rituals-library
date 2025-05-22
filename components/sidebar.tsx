@@ -14,20 +14,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
-  const [sidebarState, setSidebarState] = useState(() => {
-    try {
-      return useSidebar()
-    } catch (error) {
-      console.error("Error using sidebar context:", error)
-      return {
-        state: "expanded" as const,
-        toggle: () => {},
-        isOpen: false,
-        setIsOpen: () => {},
-      }
-    }
-  })
-
+  const sidebarState = useSidebar()
   const { state, toggle, isOpen, setIsOpen } = sidebarState
 
   // Marcar como montado para evitar problemas de hidratación
@@ -118,7 +105,10 @@ export function Sidebar() {
               variant="ghost"
               size="icon"
               className="hidden md:flex"
-              onClick={toggle}
+              onClick={() => {
+                console.log("Botón toggle sidebar clickeado")
+                toggle()
+              }}
               title={isCollapsed ? "Expandir" : "Colapsar"}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -173,8 +163,9 @@ export function Sidebar() {
                       variant="ghost"
                       className="w-full justify-center px-2"
                       onClick={() => {
+                        console.log("Botón de cierre de sesión clickeado")
+                        // Llamar directamente a signOut sin pasar por setIsOpen
                         signOut()
-                        setIsOpen(false)
                       }}
                     >
                       <LogOut className="h-5 w-5 flex-shrink-0" />
@@ -187,8 +178,9 @@ export function Sidebar() {
                   variant="ghost"
                   className="w-full justify-start"
                   onClick={() => {
+                    console.log("Botón de cierre de sesión clickeado")
+                    // Llamar directamente a signOut sin pasar por setIsOpen
                     signOut()
-                    setIsOpen(false)
                   }}
                 >
                   <LogOut className="h-5 w-5 flex-shrink-0" />

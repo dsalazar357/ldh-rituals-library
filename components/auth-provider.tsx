@@ -199,12 +199,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut()
+      console.log("Iniciando proceso de cierre de sesión")
 
-      // Redirect to login
-      window.location.href = "/login"
+      // Primero, limpia el estado local
+      setUser(null)
+      setSession(null)
+
+      // Luego, cierra sesión en Supabase
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error("Error al cerrar sesión en Supabase:", error)
+        throw error
+      }
+
+      console.log("Sesión cerrada correctamente, redirigiendo...")
+
+      // Redirige a la página de login usando router en lugar de window.location
+      // para evitar una recarga completa de la página
+      router.push("/login")
     } catch (error) {
-      console.error("Error signing out:", error)
+      console.error("Error al cerrar sesión:", error)
+      // Forzar redirección en caso de error
+      window.location.href = "/login"
     }
   }
 

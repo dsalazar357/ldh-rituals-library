@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 
 type SidebarState = "expanded" | "collapsed"
 
@@ -80,12 +80,32 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isMounted])
 
-  const toggle = () => {
-    setState((prev) => (prev === "expanded" ? "collapsed" : "expanded"))
-  }
+  const toggle = useCallback(() => {
+    console.log("Toggle sidebar llamado, estado actual:", state)
+    setState((prev) => {
+      const newState = prev === "expanded" ? "collapsed" : "expanded"
+      console.log("Cambiando estado de sidebar a:", newState)
+
+      // Guardar en localStorage
+      try {
+        localStorage.setItem("sidebar-state", newState)
+      } catch (error) {
+        console.error("Error al guardar estado del sidebar:", error)
+      }
+
+      return newState
+    })
+  }, [state])
 
   // Usar valores por defecto durante el prerendering
-  const contextValue = isMounted ? { state, toggle, isOpen, setIsOpen } : defaultContextValue
+  const contextValue = isMounted
+    ? {
+        state,
+        toggle,
+        isOpen,
+        setIsOpen,
+      }
+    : defaultContextValue
 
   return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
 }

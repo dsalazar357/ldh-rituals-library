@@ -14,6 +14,7 @@ export function Header() {
   const { user } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
   const { state, setIsOpen } = useSidebar()
+  const [isOpen, setIsOpenLocal] = useState(false) // Local state for the menu button
   const isCollapsed = state === "collapsed"
 
   // Asegurarnos de que el componente está montado antes de renderizar
@@ -44,7 +45,15 @@ export function Header() {
       )}
     >
       <div className="flex items-center px-4 md:hidden">
-        <Button variant="ghost" size="icon" onClick={() => setIsOpen(true)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            console.log("Botón de menú móvil clickeado")
+            setIsOpen(!isOpen)
+            setIsOpen(true)
+          }}
+        >
           <Menu className="h-5 w-5" />
           <span className="sr-only">Abrir menú</span>
         </Button>
