@@ -12,6 +12,7 @@ type AuthContextType = {
   isLoading: boolean
   signIn: (email: string, password: string) => Promise<boolean>
   signOut: () => Promise<void>
+  refreshUserData: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null)
@@ -22,6 +23,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const initializedRef = useRef(false)
   const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null)
+
+  // Función para cargar datos del usuario
+  const loadUserData = useCallback(async (userId: string, userEmail: string) => {
+    try {
+      console.log("Cargando datos del usuario:", userId)
+      const supabase = getSupabaseClient()
+      const { data: userData, error } = await supabase.from("users").select("*").eq("id", userId).single()
+
+      if (error || !userData) {
+        console.error("Error al cargar datos del usuario:", error)
+        return null
+      }
+
+      console.log("Datos del usuario cargados correctamente:", userData.name, "Rol:", userData.role)
+
+      return {
+        id: userData.id,
+        name: userData.name,
+        email: userEmail,
+        degree: userData.degree,
+        lodge: userData.lodge || undefined,
+        role: userData.role,
+      }
+    } catch (error) {
+      console.error("Error al cargar datos del usuario:", error)
+      return null
+    }
+  }, [])
+
+  // Función para refrescar los datos del usuario
+  const refreshUserData = useCallback(async () => {
+    if (!session?.user.id) return
+
+    try {
+      console.log("Refrescando datos del usuario")
+      const userData = await loadUserData(session.user.id, session.user.email || "")
+      if (userData) {
+        setUser(userData)
+        console.log("Datos del usuario actualizados:", userData.name, "Rol:", userData.role)
+      }
+    } catch (error) {
+      console.error("Error al refrescar datos del usuario:", error)
+    }
+  }, [session, loadUserData])
 
   // Función para iniciar sesión
   const signIn = useCallback(async (email: string, password: string): Promise<boolean> => {
@@ -58,6 +103,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false
       }
 
+      console.log("Datos del usuario obtenidos:", userData.name, "Rol:", userData.role)
+
       // Actualizar estado
       setSession(data.session)
       setUser({
@@ -87,34 +134,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       window.location.href = "/login"
-    }
-  }, [])
-
-  // Función para cargar datos del usuario
-  const loadUserData = useCallback(async (userId: string, userEmail: string) => {
-    try {
-      console.log("Cargando datos del usuario:", userId)
-      const supabase = getSupabaseClient()
-      const { data: userData, error } = await supabase.from("users").select("*").eq("id", userId).single()
-
-      if (error || !userData) {
-        console.error("Error al cargar datos del usuario:", error)
-        return null
-      }
-
-      console.log("Datos del usuario cargados correctamente:", userData.name)
-
-      return {
-        id: userData.id,
-        name: userData.name,
-        email: userEmail,
-        degree: userData.degree,
-        lodge: userData.lodge || undefined,
-        role: userData.role,
-      }
-    } catch (error) {
-      console.error("Error al cargar datos del usuario:", error)
-      return null
     }
   }, [])
 
@@ -189,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     signIn,
     signOut,
+    refreshUserData,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

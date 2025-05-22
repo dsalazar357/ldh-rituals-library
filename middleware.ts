@@ -13,8 +13,10 @@ function isExcludedPath(pathname: string): boolean {
     pathname === "/auth-debug" ||
     pathname === "/debug" ||
     pathname === "/user-debug" ||
+    pathname === "/admin-debug" ||
     pathname.startsWith("/auth-debug/") ||
-    pathname.startsWith("/user-debug/")
+    pathname.startsWith("/user-debug/") ||
+    pathname.startsWith("/admin-debug/")
   )
 }
 
@@ -77,6 +79,24 @@ export async function middleware(req: NextRequest) {
     if (session && isPublicRoute) {
       console.log(`Middleware: Redirigiendo a dashboard desde ${pathname} (sesión activa)`)
       return NextResponse.redirect(new URL("/", req.url))
+    }
+
+    // Verificar permisos de administrador para rutas de admin
+    if (pathname.startsWith("/admin")) {
+      // Obtener el usuario de la base de datos para verificar su rol
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session?.user.id)
+        .single()
+
+      console.log("Middleware - Verificando acceso admin:", userData)
+
+      if (userError || !userData || userData.role !== "admin") {
+        console.log(`Middleware: Acceso denegado a ${pathname} (no es admin)`)
+        // Redirigir a la página principal si no es admin
+        return NextResponse.redirect(new URL("/", req.url))
+      }
     }
 
     return res
