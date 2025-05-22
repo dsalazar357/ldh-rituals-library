@@ -1,7 +1,7 @@
-import { createClient as createClientBrowser } from "@/lib/supabase/client"
+import { createClient as createClientBrowser, supabaseDb } from "@/lib/supabase/client"
 import { createServerClient } from "@supabase/ssr"
 import type { Database } from "@/types/database"
-import { cookies } from "next/headers"
+import type { cookies } from "next/headers"
 
 // Default values for preview environment
 const PREVIEW_SUPABASE_URL = "https://example.supabase.co"
@@ -21,14 +21,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || PREVIEW_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || PREVIEW_ANON_KEY
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || PREVIEW_SERVICE_KEY
 
-// Create Supabase client for browser-side operations
-export const supabaseDb = createClientBrowser()
+// Export supabaseDb from client
+export { supabaseDb }
 
 // Create Supabase client for auth operations
 export const supabaseAuth = createClientBrowser()
 
 // Función para crear el cliente de Supabase Admin
-export const createAdminClient = () => {
+export const createAdminClient = (cookieStore?: ReturnType<typeof cookies>) => {
   if (isPreviewEnvironment) {
     console.log("Using mock Supabase client for preview environment")
     return createClientBrowser()
@@ -36,8 +36,7 @@ export const createAdminClient = () => {
 
   try {
     // En el servidor, necesitamos usar createServerClient con opciones de cookies
-    if (typeof window === "undefined") {
-      const cookieStore = cookies()
+    if (typeof window === "undefined" && cookieStore) {
       return createServerClient(supabaseUrl, supabaseServiceKey, {
         cookies: {
           get(name: string) {
@@ -66,11 +65,12 @@ export const createAdminClient = () => {
 }
 
 // Create Supabase client for server-side operations with admin privileges
-export const supabaseAdmin = createAdminClient()
+// No inicializamos supabaseAdmin aquí, lo haremos en cada componente que lo necesite
+export const supabaseAdmin = createClientBrowser()
 
 // Function to create a server client with cookies
-export const createClient = (cookieStore: ReturnType<typeof cookies>) => {
-  if (isPreviewEnvironment) {
+export const createClient = (cookieStore?: ReturnType<typeof cookies>) => {
+  if (isPreviewEnvironment || !cookieStore) {
     console.log("Using mock Supabase client for preview environment")
     return createClientBrowser()
   }

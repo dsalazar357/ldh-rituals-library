@@ -6,6 +6,11 @@ const PREVIEW_SUPABASE_URL = "https://example.supabase.co"
 const PREVIEW_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtdXB0cHBsZnZpaWZyYndtbXR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTQwMjY5OTIsImV4cCI6MTk2OTYwMjk5Mn0.z2CN0mvO2No8wSi46Gw59VR2RHwVXRXrHQJ3Fbyl69M"
 
+// Check if we're in a preview environment
+const isPreviewEnvironment =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+
 // Mock data for preview environment
 const MOCK_USERS = [
   {
@@ -68,11 +73,6 @@ const MOCK_RITUALS = [
     user_id: "admin-user-id",
   },
 ]
-
-// Check if we're in a preview environment
-const isPreviewEnvironment =
-  typeof window !== "undefined" &&
-  (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
 
 // Create a mock client for preview environment
 const createMockClient = () => {
@@ -205,3 +205,6 @@ export const createClient = () => {
     return createMockClient()
   }
 }
+
+// Crear y exportar una instancia del cliente para uso en el navegador
+export const supabaseDb = createClient()
