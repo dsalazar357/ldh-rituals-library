@@ -8,14 +8,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/hooks/use-auth"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { supabase } from "@/lib/supabase-client"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn } = useAuth()
-
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
@@ -27,31 +25,26 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Use our direct login API
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      // Iniciar sesión directamente con Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        console.error("Login error:", data.error)
-        setError(`Error de autenticación: ${data.error}`)
-        setIsLoading(false)
+      if (error) {
+        console.error("Error al iniciar sesión:", error.message)
+        setError(`Error de autenticación: ${error.message}`)
         return
       }
 
-      console.log("Login successful, redirecting...")
-
-      // Refresh the page to update the auth state
-      window.location.href = "/"
+      if (data.session) {
+        console.log("Sesión iniciada correctamente")
+        router.push("/")
+        router.refresh()
+      }
     } catch (error: any) {
-      console.error("Error:", error)
-      setError(`Ocurrió un error inesperado: ${error?.message || "Unknown error"}`)
+      console.error("Error inesperado:", error)
+      setError(`Error inesperado: ${error?.message || "Desconocido"}`)
     } finally {
       setIsLoading(false)
     }

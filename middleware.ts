@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
 
-  // Inicializar el cliente de Supabase
+  // Crear cliente de Supabase para el servidor
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,14 +14,14 @@ export async function middleware(req: NextRequest) {
         get(name: string) {
           return req.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+        set(name: string, value: string, options: CookieOptions) {
           res.cookies.set({
             name,
             value,
             ...options,
           })
         },
-        remove(name: string, options: { path: string; domain?: string }) {
+        remove(name: string, options: CookieOptions) {
           res.cookies.set({
             name,
             value: "",
@@ -33,61 +33,44 @@ export async function middleware(req: NextRequest) {
     },
   )
 
-  // Verificar si el usuario está autenticado
+  // Verificar sesión
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Considerar al usuario autenticado si hay una sesión
-  const isAuthenticated = !!session
-
-  // Definir rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login"]
+  // Rutas públicas que no requieren autenticación
+  const publicRoutes = ["/login", "/registro"]
   const isPublicRoute = publicRoutes.some((route) => req.nextUrl.pathname === route)
 
-  // Definir rutas de API que no deben ser bloqueadas
+  // Rutas de API que no requieren verificación
   const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin"]
   const isApiRoute = apiRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
 
-  // Si es una ruta de API, permitir el acceso sin verificar autenticación
+  // Permitir acceso a rutas de API sin verificación
   if (isApiRoute) {
     return res
   }
 
-  // Si no hay sesión y el usuario está tratando de acceder a una ruta protegida
-  if (!isAuthenticated && !isPublicRoute) {
-    console.log(`Redirigiendo a login desde ${req.nextUrl.pathname} - No autenticado`)
+  // Redirigir a login si no hay sesión y la ruta no es pública
+  if (!session && !isPublicRoute) {
     const redirectUrl = new URL("/login", req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Si hay una sesión y el usuario está tratando de acceder a una ruta de autenticación
-  if (isAuthenticated && isPublicRoute) {
-    console.log(`Redirigiendo a dashboard desde ${req.nextUrl.pathname} - Ya autenticado`)
+  // Redirigir al dashboard si hay sesión y la ruta es pública
+  if (session && isPublicRoute) {
     const redirectUrl = new URL("/", req.url)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // Añadir la verificación de rol de administrador para rutas protegidas
-  // Buscar la sección donde se verifica la autenticación y añadir:
+  // Verificar acceso a rutas de administrador
+  if (session && req.nextUrl.pathname.startsWith("/admin")) {
+    // Obtener rol del usuario
+    const { data: userData, error } = await supabase.from("users").select("role").eq("id", session.user.id).single()
 
-  // Definir rutas que requieren rol de administrador
-  const adminRoutes = ["/admin", "/admin/usuarios"]
-  const isAdminRoute = adminRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
-
-  // Si es una ruta de administrador, verificar que el usuario tiene rol de administrador
-  if (isAuthenticated && isAdminRoute) {
-    // Obtener el rol del usuario
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", session.user.id)
-      .single()
-
-    if (userError || !userData || userData.role !== "admin") {
-      console.log(`Redirigiendo a dashboard desde ${req.nextUrl.pathname} - No es administrador`)
-      const redirectUrl = new URL("/", req.url)
-      return NextResponse.redirect(redirectUrl)
+    if (error || !userData || userData.role !== "admin") {
+      // No es administrador, redirigir al dashboard
+      return NextResponse.redirect(new URL("/", req.url))
     }
   }
 
@@ -95,5 +78,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.png$).*)"],
 }
