@@ -3,10 +3,12 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
-import { useAuth } from "@/components/auth-provider"
+import { createClient } from "@supabase/supabase-js"
+
+// Cliente de Supabase directo
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
 export function LogoutButton() {
-  const { signOut } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -14,8 +16,11 @@ export function LogoutButton() {
 
     setIsLoggingOut(true)
     try {
-      await signOut()
-      // La redirección se maneja en signOut
+      // Cerrar sesión directamente con Supabase
+      await supabase.auth.signOut()
+
+      // Redirección directa
+      window.location.href = "/login"
     } catch (error) {
       console.error("Error al cerrar sesión:", error)
       // Forzar redirección en caso de error
