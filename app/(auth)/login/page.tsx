@@ -1,37 +1,48 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { createClient } from "@supabase/supabase-js"
 import Link from "next/link"
-
-// Cliente de Supabase directo
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import { getSupabaseClient } from "@/lib/supabase-singleton"
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [debugInfo, setDebugInfo] = useState<string | null>(null)
+  const [loginSuccess, setLoginSuccess] = useState(false)
+
+  // Verificar si ya hay una sesión activa al cargar
+  useEffect(() => {
+    const checkSession = async () => {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase.auth.getSession()
+
+      if (data.session) {
+        console.log("Sesión existente encontrada, redirigiendo...")
+        window.location.href = "/"
+      }
+    }
+
+    checkSession()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setDebugInfo(null)
     setIsLoading(true)
 
     try {
       console.log("Intentando iniciar sesión con:", email)
+      const supabase = getSupabaseClient()
 
-      // Iniciar sesión directamente con Supabase
+      // Iniciar sesión
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -45,19 +56,14 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        console.log("Sesión iniciada correctamente, redirigiendo...", data.session)
-        setDebugInfo(
-          JSON.stringify({
-            user_id: data.user?.id,
-            session_expires_at: data.session.expires_at,
-            has_access_token: !!data.session.access_token,
-          }),
-        )
+        console.log("Sesión iniciada correctamente")
+        setLoginSuccess(true)
 
-        // Redirección inmediata sin setTimeout
-        console.log("Redirigiendo a la página principal...")
-        window.location.href = "/"
-        return // Aseguramos que no se ejecute más código después de la redirección
+        // Esperar un momento para que se establezcan las cookies
+        setTimeout(() => {
+          // Forzar recarga completa para asegurar que se apliquen las cookies
+          window.location.href = "/"
+        }, 1000)
       } else {
         setError("No se pudo iniciar sesión. Inténtalo de nuevo.")
         setIsLoading(false)
@@ -84,11 +90,10 @@ export default function LoginPage() {
           </Alert>
         )}
 
-        {debugInfo && (
+        {loginSuccess && (
           <Alert className="mb-4 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
             <AlertTitle>Inicio de sesión exitoso</AlertTitle>
             <AlertDescription>Redirigiendo al panel de control...</AlertDescription>
-            <pre className="mt-2 text-xs overflow-auto max-h-20 p-2 bg-black/10 rounded">{debugInfo}</pre>
           </Alert>
         )}
 
@@ -102,6 +107,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isLoading || loginSuccess}
             />
           </div>
           <div className="space-y-2">
@@ -112,13 +118,19 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={isLoading || loginSuccess}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || loginSuccess}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Iniciando sesión...
+              </>
+            ) : loginSuccess ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Redirigiendo...
               </>
             ) : (
               "Iniciar Sesión"

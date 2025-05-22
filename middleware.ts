@@ -7,11 +7,11 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
   // Rutas públicas que no requieren autenticación
-  const publicRoutes = ["/login", "/registro"]
-  const isPublicRoute = publicRoutes.includes(pathname)
+  const publicRoutes = ["/login", "/registro", "/debug"]
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith("/debug")
 
   // Rutas de API que no requieren verificación
-  const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin"]
+  const apiRoutes = ["/api/login", "/api/logout", "/api/seed-admin", "/api/debug"]
   const isApiRoute = apiRoutes.some((route) => pathname.startsWith(route))
 
   // Permitir acceso a rutas de API y recursos estáticos sin verificación
@@ -20,8 +20,6 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    console.log(`Middleware: Verificando ruta ${pathname}`)
-
     // Crear cliente de Supabase
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,12 +27,9 @@ export async function middleware(req: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            const cookie = req.cookies.get(name)?.value
-            console.log(`Middleware: Cookie ${name} = ${cookie ? "presente" : "ausente"}`)
-            return cookie
+            return req.cookies.get(name)?.value
           },
           set(name: string, value: string, options: any) {
-            console.log(`Middleware: Estableciendo cookie ${name}`)
             res.cookies.set({
               name,
               value,
@@ -42,7 +37,6 @@ export async function middleware(req: NextRequest) {
             })
           },
           remove(name: string, options: any) {
-            console.log(`Middleware: Eliminando cookie ${name}`)
             res.cookies.set({
               name,
               value: "",
@@ -57,20 +51,17 @@ export async function middleware(req: NextRequest) {
     // Verificar sesión
     const { data } = await supabase.auth.getSession()
     const session = data?.session
-    console.log(`Middleware: Sesión ${session ? "encontrada" : "no encontrada"}`)
 
     // Si no hay sesión y la ruta no es pública, redirigir a login
     if (!session && !isPublicRoute) {
-      console.log(`Middleware: Redirigiendo a login desde ${pathname}`)
-      const redirectUrl = new URL("/login", req.url)
-      return NextResponse.redirect(redirectUrl)
+      console.log(`Middleware: Redirigiendo a login desde ${pathname} (no hay sesión)`)
+      return NextResponse.redirect(new URL("/login", req.url))
     }
 
-    // Si hay sesión y la ruta es pública, redirigir al dashboard
-    if (session && isPublicRoute) {
-      console.log(`Middleware: Redirigiendo a dashboard desde ${pathname}`)
-      const redirectUrl = new URL("/", req.url)
-      return NextResponse.redirect(redirectUrl)
+    // Si hay sesión y la ruta es pública (como /login), redirigir al dashboard
+    if (session && isPublicRoute && pathname !== "/debug") {
+      console.log(`Middleware: Redirigiendo a dashboard desde ${pathname} (sesión activa)`)
+      return NextResponse.redirect(new URL("/", req.url))
     }
 
     return res
@@ -83,8 +74,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Redirigir a login para otras rutas
-    const redirectUrl = new URL("/login", req.url)
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(new URL("/login", req.url))
   }
 }
 
