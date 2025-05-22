@@ -67,16 +67,27 @@ export async function uploadRitual(ritualData: {
   userId: string
 }): Promise<Ritual> {
   try {
+    // Verificar que tenemos un userId válido
+    if (!ritualData.userId) {
+      throw new Error("No se proporcionó un ID de usuario válido. Por favor, inicia sesión nuevamente.")
+    }
+
+    console.log("Iniciando subida de ritual para usuario:", ritualData.userId)
+
     // Generate a safe filename
     const safeFileName = `${Date.now()}-${ritualData.file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
     const filePath = `rituales/${ritualData.degree}/${safeFileName}`
 
     // Upload file to Vercel Blob
+    console.log("Subiendo archivo a Vercel Blob...")
     const blob = await put(filePath, ritualData.file, {
       access: "public",
     })
 
+    console.log("Archivo subido correctamente:", blob.url)
+
     // Insert ritual into Supabase
+    console.log("Guardando información del ritual en Supabase...")
     const { data, error } = await supabaseDb
       .from("rituals")
       .insert({
@@ -93,8 +104,10 @@ export async function uploadRitual(ritualData: {
 
     if (error) {
       console.error("Error inserting ritual:", error)
-      throw new Error("Error al guardar el ritual en la base de datos")
+      throw new Error(`Error al guardar el ritual en la base de datos: ${error.message}`)
     }
+
+    console.log("Ritual guardado correctamente:", data.id)
 
     return {
       id: data.id,

@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getSession = async () => {
       setIsLoading(true)
       try {
+        console.log("Obteniendo sesión...")
         const {
           data: { session },
           error,
@@ -44,10 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
+        console.log("Sesión obtenida:", session ? "Sí" : "No")
         setSession(session)
 
         if (session) {
           // Get user profile
+          console.log("Obteniendo perfil de usuario para:", session.user.id)
           const { data: profile, error: profileError } = await supabase
             .from("users")
             .select("*")
@@ -61,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (profile) {
+            console.log("Perfil de usuario obtenido:", profile.name)
             setUser({
               id: profile.id,
               name: profile.name,
@@ -69,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               lodge: profile.lodge || undefined,
               role: profile.role,
             })
+          } else {
+            console.error("No se encontró el perfil de usuario para:", session.user.id)
           }
         }
       } catch (error) {

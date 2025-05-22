@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/components/auth-provider"
+import { useAuth } from "@/hooks/use-auth"
 import { uploadRitual } from "@/lib/ritual-service"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 export function UploadRitualForm() {
   const router = useRouter()
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
 
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -30,6 +30,15 @@ export function UploadRitualForm() {
     language: "Español",
     file: null as File | null,
   })
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+
+  // Verificar el estado de autenticación después de que el componente se monte
+  useEffect(() => {
+    // Esperar a que se complete la carga de autenticación
+    if (!authLoading) {
+      setIsCheckingAuth(false)
+    }
+  }, [authLoading])
 
   const ritualSystems = ["Escocés", "Francés", "Emulación", "York"]
   const languages = ["Español", "Inglés", "Francés", "Portugués"]
@@ -67,8 +76,12 @@ export function UploadRitualForm() {
     e.preventDefault()
     setUploadError(null)
 
+    // Verificar nuevamente la autenticación antes de subir
     if (!user) {
-      setUploadError("Debes iniciar sesión para subir rituales.")
+      console.error("No hay usuario autenticado al intentar subir ritual")
+      setUploadError(
+        "Debes iniciar sesión para subir rituales. Por favor, recarga la página o inicia sesión nuevamente.",
+      )
       return
     }
 
@@ -99,6 +112,8 @@ export function UploadRitualForm() {
         })
       }, 500)
 
+      console.log("Subiendo ritual con usuario:", user.id, user.name)
+
       await uploadRitual({
         name: formData.name,
         degree: ritualDegree,
@@ -126,6 +141,40 @@ export function UploadRitualForm() {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  // Mostrar un mensaje de carga mientras se verifica la autenticación
+  if (isCheckingAuth) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p>Verificando autenticación...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Mostrar un error si no hay usuario autenticado
+  if (!user) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error de autenticación</AlertTitle>
+            <AlertDescription>
+              Debes iniciar sesión para subir rituales. Por favor, recarga la página o inicia sesión nuevamente.
+            </AlertDescription>
+          </Alert>
+          <div className="mt-4 flex justify-center">
+            <Button onClick={() => router.push("/login")}>Ir a la página de inicio de sesión</Button>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
