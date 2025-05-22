@@ -5,8 +5,49 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { useRitualsFilter } from "@/hooks/use-rituals-filter"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Suspense } from "react"
 
-export function RitualsFilters() {
+// Componente de carga para los filtros
+function RitualsFiltersLoading() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Filtros</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+
+        <Skeleton className="h-10 w-full" />
+      </CardContent>
+    </Card>
+  )
+}
+
+// Componente principal de filtros
+function RitualsFiltersContent() {
   const { filters, setFilters, resetFilters } = useRitualsFilter()
 
   const ritualSystems = ["Escocés", "Francés", "Emulación", "York"]
@@ -102,5 +143,14 @@ export function RitualsFilters() {
         </Button>
       </CardContent>
     </Card>
+  )
+}
+
+// Componente exportado que envuelve el contenido en Suspense
+export function RitualsFilters() {
+  return (
+    <Suspense fallback={<RitualsFiltersLoading />}>
+      <RitualsFiltersContent />
+    </Suspense>
   )
 }

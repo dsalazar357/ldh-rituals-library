@@ -18,8 +18,41 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useState } from "react"
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
-export function RitualsList() {
+// Componente de carga para la lista de rituales
+function RitualsListLoading() {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-48" />
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="p-4">
+              <div className="flex items-start gap-4">
+                <Skeleton className="h-12 w-12 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Componente principal de la lista de rituales
+function RitualsListContent() {
   const { rituals, refetch } = useRituals()
   const { filters } = useRitualsFilter()
   const { user } = useAuth()
@@ -173,5 +206,14 @@ export function RitualsList() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// Componente exportado que envuelve el contenido en Suspense
+export function RitualsList() {
+  return (
+    <Suspense fallback={<RitualsListLoading />}>
+      <RitualsListContent />
+    </Suspense>
   )
 }

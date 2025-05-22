@@ -6,8 +6,24 @@ import { Plus } from "lucide-react"
 import Link from "next/link"
 import { useRituals } from "@/hooks/use-rituals"
 import { useAuth } from "@/hooks/use-auth"
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 
-export function RitualsHeader() {
+// Componente de carga para el encabezado
+function RitualsHeaderLoading() {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="space-y-1">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <Skeleton className="h-10 w-32" />
+    </div>
+  )
+}
+
+// Componente principal del encabezado
+function RitualsHeaderContent() {
   const { rituals } = useRituals()
   const { user } = useAuth()
 
@@ -27,5 +43,14 @@ export function RitualsHeader() {
         </Button>
       </Link>
     </div>
+  )
+}
+
+// Componente exportado que envuelve el contenido en Suspense
+export function RitualsHeader() {
+  return (
+    <Suspense fallback={<RitualsHeaderLoading />}>
+      <RitualsHeaderContent />
+    </Suspense>
   )
 }

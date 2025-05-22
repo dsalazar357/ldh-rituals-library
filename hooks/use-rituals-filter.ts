@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { use } from "react"
 
 interface RitualsFilters {
   organizeBy: string
@@ -11,7 +12,8 @@ interface RitualsFilters {
 }
 
 export function useRitualsFilter() {
-  const searchParams = useSearchParams()
+  const searchParamsPromise = useSearchParams()
+  const searchParams = use(searchParamsPromise)
   const router = useRouter()
   const pathname = usePathname()
 
