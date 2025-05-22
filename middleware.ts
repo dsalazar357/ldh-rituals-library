@@ -68,6 +68,29 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Añadir la verificación de rol de administrador para rutas protegidas
+  // Buscar la sección donde se verifica la autenticación y añadir:
+
+  // Definir rutas que requieren rol de administrador
+  const adminRoutes = ["/admin", "/admin/usuarios"]
+  const isAdminRoute = adminRoutes.some((route) => req.nextUrl.pathname.startsWith(route))
+
+  // Si es una ruta de administrador, verificar que el usuario tiene rol de administrador
+  if (isAuthenticated && isAdminRoute) {
+    // Obtener el rol del usuario
+    const { data: userData, error: userError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", session.user.id)
+      .single()
+
+    if (userError || !userData || userData.role !== "admin") {
+      console.log(`Redirigiendo a dashboard desde ${req.nextUrl.pathname} - No es administrador`)
+      const redirectUrl = new URL("/", req.url)
+      return NextResponse.redirect(redirectUrl)
+    }
+  }
+
   return res
 }
 
