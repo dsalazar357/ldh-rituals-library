@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type { Ritual } from "@/types/ritual"
-import { getRitualById } from "@/lib/rituals"
+import { getRitualById } from "@/lib/ritual-service"
 
 export function useRitual(id: string) {
   const [ritual, setRitual] = useState<Ritual | null>(null)
@@ -11,10 +11,11 @@ export function useRitual(id: string) {
   useEffect(() => {
     const fetchRitual = async () => {
       try {
+        setIsLoading(true)
         const data = await getRitualById(id)
         setRitual(data)
       } catch (error) {
-        console.error(`Error al obtener ritual con ID ${id}:`, error)
+        console.error(`Error fetching ritual with ID ${id}:`, error)
         setRitual(null)
       } finally {
         setIsLoading(false)

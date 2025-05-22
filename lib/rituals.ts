@@ -1,133 +1,64 @@
+import { createClient } from "@/lib/supabase/client"
+import { put } from "@vercel/blob"
 import type { Ritual } from "@/types/ritual"
-import { APP_NAME } from "@/lib/env"
-import { uploadFile } from "@/lib/blob"
 
-// Datos de ejemplo para rituales
-const mockRituals: Ritual[] = [
-  {
-    id: "1",
-    name: `Ritual de Apertura Grado 1 - ${APP_NAME}`,
-    degree: 1,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual1.pdf",
-    createdAt: "2023-01-15T10:30:00Z",
-  },
-  {
-    id: "2",
-    name: "Ritual de Clausura Grado 1",
-    degree: 1,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual2.pdf",
-    createdAt: "2023-01-20T14:45:00Z",
-  },
-  {
-    id: "3",
-    name: "Ritual de Iniciación Grado 1",
-    degree: 1,
-    ritualSystem: "Francés",
-    language: "Español",
-    author: "Usuario Grado 3",
-    fileUrl: "/files/ritual3.pdf",
-    createdAt: "2023-02-05T09:15:00Z",
-  },
-  {
-    id: "4",
-    name: "Ritual de Apertura Grado 2",
-    degree: 2,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual4.pdf",
-    createdAt: "2023-02-10T11:20:00Z",
-  },
-  {
-    id: "5",
-    name: "Ritual de Clausura Grado 2",
-    degree: 2,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Usuario Grado 3",
-    fileUrl: "/files/ritual5.pdf",
-    createdAt: "2023-02-15T16:30:00Z",
-  },
-  {
-    id: "6",
-    name: "Ritual de Apertura Grado 3",
-    degree: 3,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual6.pdf",
-    createdAt: "2023-03-01T13:45:00Z",
-  },
-  {
-    id: "7",
-    name: "Ritual de Clausura Grado 3",
-    degree: 3,
-    ritualSystem: "Escocés",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual7.pdf",
-    createdAt: "2023-03-05T10:00:00Z",
-  },
-  {
-    id: "8",
-    name: "Ritual de Iniciación Grado 1",
-    degree: 1,
-    ritualSystem: "Emulación",
-    language: "Inglés",
-    author: "Usuario Grado 3",
-    fileUrl: "/files/ritual8.pdf",
-    createdAt: "2023-03-10T15:20:00Z",
-  },
-  {
-    id: "9",
-    name: "Ritual de Apertura Grado 1",
-    degree: 1,
-    ritualSystem: "York",
-    language: "Español",
-    author: "Administrador",
-    fileUrl: "/files/ritual9.pdf",
-    createdAt: "2023-03-15T09:30:00Z",
-  },
-  {
-    id: "10",
-    name: "Ritual de Iniciación Grado 2",
-    degree: 2,
-    ritualSystem: "Francés",
-    language: "Francés",
-    author: "Usuario Grado 3",
-    fileUrl: "/files/ritual10.pdf",
-    createdAt: "2023-03-20T14:15:00Z",
-  },
-]
-
-// Variable para almacenar los rituales (simulando una base de datos)
-const rituals = [...mockRituals]
-
-// Función para obtener todos los rituales
+// Function to get all rituals
 export async function getRituals(): Promise<Ritual[]> {
-  // Simulación de obtención de rituales
-  return [...rituals]
+  const supabase = createClient()
+
+  try {
+    const { data, error } = await supabase.from("rituals").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching rituals:", error)
+      return []
+    }
+
+    return data.map((ritual) => ({
+      id: ritual.id,
+      name: ritual.name,
+      degree: ritual.degree,
+      ritualSystem: ritual.ritual_system,
+      language: ritual.language,
+      author: ritual.author,
+      fileUrl: ritual.file_url,
+      createdAt: ritual.created_at,
+    }))
+  } catch (error) {
+    console.error("Error in getRituals:", error)
+    return []
+  }
 }
 
-// Función para obtener un ritual por ID
+// Function to get a ritual by ID
 export async function getRitualById(id: string): Promise<Ritual | null> {
-  // Simulación de obtención de ritual por ID
-  const ritual = rituals.find((r) => r.id === id)
+  const supabase = createClient()
 
-  if (!ritual) {
+  try {
+    const { data, error } = await supabase.from("rituals").select("*").eq("id", id).single()
+
+    if (error) {
+      console.error(`Error fetching ritual with ID ${id}:`, error)
+      return null
+    }
+
+    return {
+      id: data.id,
+      name: data.name,
+      degree: data.degree,
+      ritualSystem: data.ritual_system,
+      language: data.language,
+      author: data.author,
+      fileUrl: data.file_url,
+      createdAt: data.created_at,
+    }
+  } catch (error) {
+    console.error(`Error in getRitualById for ID ${id}:`, error)
     return null
   }
-
-  return ritual
 }
 
-// Función para subir un nuevo ritual
+// Function to upload a new ritual
 export async function uploadRitual(ritualData: {
   name: string
   degree: number
@@ -135,51 +66,84 @@ export async function uploadRitual(ritualData: {
   language: string
   file: File
   author: string
+  userId: string
 }): Promise<Ritual> {
+  const supabase = createClient()
+
   try {
-    // Subir el archivo a Vercel Blob
-    const fileUrl = await uploadFile(ritualData.file)
+    // Generate a safe filename
+    const safeFileName = `${Date.now()}-${ritualData.file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`
+    const filePath = `rituales/${ritualData.degree}/${safeFileName}`
 
-    // Generar un ID único
-    const id = Math.random().toString(36).substring(2, 11)
+    // Upload file to Vercel Blob
+    const blob = await put(filePath, ritualData.file, {
+      access: "public",
+    })
 
-    // Crear el nuevo ritual
-    const newRitual: Ritual = {
-      id,
-      name: ritualData.name,
-      degree: ritualData.degree,
-      ritualSystem: ritualData.ritualSystem,
-      language: ritualData.language,
-      author: ritualData.author,
-      fileUrl,
-      createdAt: new Date().toISOString(),
+    // Insert ritual into Supabase
+    const { data, error } = await supabase
+      .from("rituals")
+      .insert({
+        name: ritualData.name,
+        degree: ritualData.degree,
+        ritual_system: ritualData.ritualSystem,
+        language: ritualData.language,
+        author: ritualData.author,
+        file_url: blob.url,
+        user_id: ritualData.userId,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error("Error inserting ritual:", error)
+      throw new Error("Error al guardar el ritual en la base de datos")
     }
 
-    // Añadir el nuevo ritual a la lista
-    rituals.push(newRitual)
-
-    console.log("Ritual subido:", newRitual)
-
-    return newRitual
+    return {
+      id: data.id,
+      name: data.name,
+      degree: data.degree,
+      ritualSystem: data.ritual_system,
+      language: data.language,
+      author: data.author,
+      fileUrl: data.file_url,
+      createdAt: data.created_at,
+    }
   } catch (error) {
-    console.error("Error al subir ritual:", error)
+    console.error("Error in uploadRitual:", error)
     throw error
   }
 }
 
-// Función para eliminar un ritual
+// Function to delete a ritual
 export async function deleteRitual(id: string): Promise<boolean> {
-  // Verificar si el ritual existe
-  const ritualIndex = rituals.findIndex((r) => r.id === id)
+  const supabase = createClient()
 
-  if (ritualIndex === -1) {
+  try {
+    // Get the ritual to get the file URL
+    const { data: ritual, error: fetchError } = await supabase.from("rituals").select("file_url").eq("id", id).single()
+
+    if (fetchError) {
+      console.error(`Error fetching ritual with ID ${id}:`, fetchError)
+      return false
+    }
+
+    // Delete the ritual from Supabase
+    const { error: deleteError } = await supabase.from("rituals").delete().eq("id", id)
+
+    if (deleteError) {
+      console.error(`Error deleting ritual with ID ${id}:`, deleteError)
+      return false
+    }
+
+    // TODO: Delete the file from Vercel Blob
+    // This would require a server-side function as Vercel Blob doesn't support
+    // client-side deletion for security reasons
+
+    return true
+  } catch (error) {
+    console.error(`Error in deleteRitual for ID ${id}:`, error)
     return false
   }
-
-  // Eliminar el ritual de la lista
-  rituals.splice(ritualIndex, 1)
-
-  console.log(`Ritual con ID ${id} eliminado`)
-
-  return true
 }

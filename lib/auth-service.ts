@@ -129,7 +129,7 @@ export async function getCurrentUser(): Promise<User | null> {
     const user: User = {
       id: userData.id,
       name: userData.name,
-      email: userData.email,
+      email: userData.email || data.user.email || "",
       degree: userData.degree,
       lodge: userData.lodge,
       role: userData.role,

@@ -3,6 +3,6 @@ export interface User {
   name: string
   email: string
   degree: number
-  lodge: string
+  lodge?: string
   role: "admin" | "user"
 }

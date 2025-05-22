@@ -1,14 +1,10 @@
-// Validación de variables de entorno
-function getEnvVariable(key: string, defaultValue?: string): string {
-  // En el navegador, solo podemos acceder a las variables NEXT_PUBLIC_*
-  if (typeof window !== "undefined") {
-    const value = process.env[`NEXT_PUBLIC_${key}`]
-    return value || defaultValue || ""
-  }
+// Environment variables access
+export const BLOB_READ_WRITE_TOKEN = process.env.BLOB_READ_WRITE_TOKEN || ""
 
-  // En el servidor, podemos acceder a todas las variables
-  const value = process.env[key] || process.env[`NEXT_PUBLIC_${key}`]
-  return value || defaultValue || ""
+// Function to safely access environment variables
+export function getEnvVariable(key: string, defaultValue = ""): string {
+  const value = process.env[key] || process.env[`NEXT_PUBLIC_${key}`] || defaultValue
+  return value
 }
 
 // Variables de entorno para la aplicación

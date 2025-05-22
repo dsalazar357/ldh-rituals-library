@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { User } from "@/types/user"
-import { getUsers, addUser as addUserApi, updateUser as updateUserApi, deleteUser as deleteUserApi } from "@/lib/users"
+import {
+  getUsers,
+  addUser as addUserApi,
+  updateUser as updateUserApi,
+  deleteUser as deleteUserApi,
+} from "@/lib/user-service"
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([])
@@ -10,10 +15,11 @@ export function useUsers() {
 
   const fetchUsers = useCallback(async () => {
     try {
+      setIsLoading(true)
       const data = await getUsers()
       setUsers(data)
     } catch (error) {
-      console.error("Error al obtener usuarios:", error)
+      console.error("Error fetching users:", error)
     } finally {
       setIsLoading(false)
     }
@@ -23,24 +29,24 @@ export function useUsers() {
     fetchUsers()
   }, [fetchUsers])
 
-  const addUser = async (userData: Omit<User, "id">) => {
+  const addUser = async (userData: Omit<User, "id"> & { password?: string }) => {
     try {
       const newUser = await addUserApi(userData)
       setUsers((prev) => [...prev, newUser])
       return newUser
     } catch (error) {
-      console.error("Error al añadir usuario:", error)
+      console.error("Error adding user:", error)
       throw error
     }
   }
 
-  const updateUser = async (id: string, userData: Partial<User>) => {
+  const updateUser = async (id: string, userData: Partial<User> & { password?: string }) => {
     try {
       const updatedUser = await updateUserApi(id, userData)
       setUsers((prev) => prev.map((user) => (user.id === id ? updatedUser : user)))
       return updatedUser
     } catch (error) {
-      console.error(`Error al actualizar usuario con ID ${id}:`, error)
+      console.error(`Error updating user with ID ${id}:`, error)
       throw error
     }
   }
@@ -50,7 +56,7 @@ export function useUsers() {
       await deleteUserApi(id)
       setUsers((prev) => prev.filter((user) => user.id !== id))
     } catch (error) {
-      console.error(`Error al eliminar usuario con ID ${id}:`, error)
+      console.error(`Error deleting user with ID ${id}:`, error)
       throw error
     }
   }

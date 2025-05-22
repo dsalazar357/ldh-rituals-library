@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { Ritual } from "@/types/ritual"
-import { getRituals } from "@/lib/rituals"
+import { getRituals } from "@/lib/ritual-service"
 
 export function useRituals() {
   const [rituals, setRituals] = useState<Ritual[]>([])
@@ -14,7 +14,7 @@ export function useRituals() {
       const data = await getRituals()
       setRituals(data)
     } catch (error) {
-      console.error("Error al obtener rituales:", error)
+      console.error("Error fetching rituals:", error)
     } finally {
       setIsLoading(false)
     }

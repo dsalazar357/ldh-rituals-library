@@ -4,7 +4,7 @@ import { MoonIcon, SunIcon, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/auth-provider" // Use the hook instead of importing AuthContext directly
 import { useSidebar } from "@/hooks/use-sidebar"
 import { cn } from "@/lib/utils"
 

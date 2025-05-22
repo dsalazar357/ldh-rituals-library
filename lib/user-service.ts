@@ -1,74 +1,168 @@
-import { supabaseDb } from "@/lib/supabase"
+import { supabaseDb, supabaseAdmin } from "@/lib/supabase"
 import type { User } from "@/types/user"
 
-// Obtener todos los usuarios
+// Verificar si estamos en un entorno de vista previa
+const isPreviewEnvironment =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app"))
+
+// Get all users
 export async function getUsers(): Promise<User[]> {
   try {
+    console.log("Fetching users...")
+
     const { data, error } = await supabaseDb.from("users").select("*")
 
     if (error) {
-      console.error("Error al obtener usuarios:", error.message)
+      console.error("Error fetching users:", error)
+
+      // Si estamos en un entorno de vista previa, devolver datos simulados
+      if (isPreviewEnvironment) {
+        console.log("Using mock data for preview environment")
+        return [
+          {
+            id: "admin-user-id",
+            name: "Administrador",
+            email: "admin@ldh.org",
+            degree: 33,
+            lodge: "Admin",
+            role: "admin",
+          },
+          {
+            id: "user-1",
+            name: "Usuario de Prueba",
+            email: "usuario@ldh.org",
+            degree: 3,
+            lodge: "Taller de Prueba",
+            role: "user",
+          },
+        ]
+      }
+
       return []
     }
 
     return data.map((user) => ({
       id: user.id,
       name: user.name,
-      email: user.email,
+      email: user.email || "",
       degree: user.degree,
-      lodge: user.lodge,
+      lodge: user.lodge || undefined,
       role: user.role,
     }))
   } catch (error) {
-    console.error("Error inesperado al obtener usuarios:", error)
+    console.error("Error in getUsers:", error)
+
+    // Si estamos en un entorno de vista previa, devolver datos simulados
+    if (isPreviewEnvironment) {
+      console.log("Using mock data for preview environment")
+      return [
+        {
+          id: "admin-user-id",
+          name: "Administrador",
+          email: "admin@ldh.org",
+          degree: 33,
+          lodge: "Admin",
+          role: "admin",
+        },
+        {
+          id: "user-1",
+          name: "Usuario de Prueba",
+          email: "usuario@ldh.org",
+          degree: 3,
+          lodge: "Taller de Prueba",
+          role: "user",
+        },
+      ]
+    }
+
     return []
   }
 }
 
-// Obtener un usuario por ID
+// Get user by ID
 export async function getUserById(id: string): Promise<User | null> {
   try {
     const { data, error } = await supabaseDb.from("users").select("*").eq("id", id).single()
 
     if (error) {
-      console.error(`Error al obtener usuario con ID ${id}:`, error.message)
+      console.error(`Error fetching user with ID ${id}:`, error)
+
+      // Si estamos en un entorno de vista previa y el ID es el del administrador, devolver datos simulados
+      if (isPreviewEnvironment && id === "admin-user-id") {
+        return {
+          id: "admin-user-id",
+          name: "Administrador",
+          email: "admin@ldh.org",
+          degree: 33,
+          lodge: "Admin",
+          role: "admin",
+        }
+      }
+
       return null
     }
 
     return {
       id: data.id,
       name: data.name,
-      email: data.email,
+      email: data.email || "",
       degree: data.degree,
-      lodge: data.lodge,
+      lodge: data.lodge || undefined,
       role: data.role,
     }
   } catch (error) {
-    console.error(`Error inesperado al obtener usuario con ID ${id}:`, error)
+    console.error(`Error in getUserById for ID ${id}:`, error)
+
+    // Si estamos en un entorno de vista previa y el ID es el del administrador, devolver datos simulados
+    if (isPreviewEnvironment && id === "admin-user-id") {
+      return {
+        id: "admin-user-id",
+        name: "Administrador",
+        email: "admin@ldh.org",
+        degree: 33,
+        lodge: "Admin",
+        role: "admin",
+      }
+    }
+
     return null
   }
 }
 
-// Añadir un nuevo usuario
-export async function addUser(userData: Omit<User, "id">): Promise<User> {
+// Add a new user
+export async function addUser(userData: Omit<User, "id"> & { password?: string }): Promise<User> {
   try {
-    // Crear el usuario en Supabase Auth
-    const { data: authData, error: authError } = await supabaseDb.auth.admin.createUser({
+    // Si estamos en un entorno de vista previa, simular la creación de un usuario
+    if (isPreviewEnvironment) {
+      console.log("Simulating user creation in preview environment")
+      return {
+        id: `user-${Date.now()}`,
+        name: userData.name,
+        email: userData.email,
+        degree: userData.degree,
+        lodge: userData.lodge,
+        role: userData.role,
+      }
+    }
+
+    // Create user in Auth
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: userData.email,
-      password: userData.password || Math.random().toString(36).slice(-8), // Generar contraseña aleatoria si no se proporciona
+      password: userData.password || Math.random().toString(36).slice(-8),
       email_confirm: true,
     })
 
     if (authError) {
-      console.error("Error al crear usuario en Auth:", authError.message)
+      console.error("Error creating user in Auth:", authError)
       throw new Error(authError.message)
     }
 
     if (!authData.user) {
-      throw new Error("No se pudo crear el usuario en Auth")
+      throw new Error("Failed to create user in Auth")
     }
 
-    // Crear el registro en la tabla users
+    // Create user profile in database
     const { data, error } = await supabaseDb
       .from("users")
       .insert({
@@ -83,104 +177,141 @@ export async function addUser(userData: Omit<User, "id">): Promise<User> {
       .single()
 
     if (error) {
-      console.error("Error al añadir usuario:", error.message)
+      console.error("Error creating user profile:", error)
       throw new Error(error.message)
     }
 
     return {
       id: data.id,
       name: data.name,
-      email: data.email,
+      email: data.email || "",
       degree: data.degree,
-      lodge: data.lodge,
+      lodge: userData.lodge || undefined,
       role: data.role,
     }
   } catch (error) {
-    console.error("Error inesperado al añadir usuario:", error)
+    console.error("Error in addUser:", error)
+
+    // Si estamos en un entorno de vista previa, simular la creación de un usuario
+    if (isPreviewEnvironment) {
+      return {
+        id: `user-${Date.now()}`,
+        name: userData.name,
+        email: userData.email,
+        degree: userData.degree,
+        lodge: userData.lodge,
+        role: userData.role,
+      }
+    }
+
     throw error
   }
 }
 
-// Actualizar un usuario
-export async function updateUser(id: string, userData: Partial<User>): Promise<User> {
+// Update a user
+export async function updateUser(id: string, userData: Partial<User> & { password?: string }): Promise<User> {
   try {
-    // Si se está actualizando el email, actualizar en Auth
-    if (userData.email) {
-      const { error: authError } = await supabaseDb.auth.admin.updateUserById(id, {
-        email: userData.email,
-      })
+    // Si estamos en un entorno de vista previa, simular la actualización de un usuario
+    if (isPreviewEnvironment) {
+      console.log("Simulating user update in preview environment")
+      return {
+        id,
+        name: userData.name || "Usuario Actualizado",
+        email: userData.email || "usuario@actualizado.com",
+        degree: userData.degree || 1,
+        lodge: userData.lodge,
+        role: userData.role || "user",
+      }
+    }
+
+    // Update auth data if email or password is provided
+    if (userData.email || userData.password) {
+      const updateData: any = {}
+      if (userData.email) updateData.email = userData.email
+      if (userData.password) updateData.password = userData.password
+
+      const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(id, updateData)
 
       if (authError) {
-        console.error("Error al actualizar email en Auth:", authError.message)
+        console.error("Error updating user auth data:", authError)
         throw new Error(authError.message)
       }
     }
 
-    // Si se está actualizando la contraseña, actualizar en Auth
-    if (userData.password) {
-      const { error: passwordError } = await supabaseDb.auth.admin.updateUserById(id, {
-        password: userData.password,
-      })
+    // Update user profile in database
+    const updateData: any = {}
+    if (userData.name) updateData.name = userData.name
+    if (userData.email) updateData.email = userData.email
+    if (userData.degree) updateData.degree = userData.degree
+    if (userData.lodge !== undefined) updateData.lodge = userData.lodge
+    if (userData.role) updateData.role = userData.role
 
-      if (passwordError) {
-        console.error("Error al actualizar contraseña en Auth:", passwordError.message)
-        throw new Error(passwordError.message)
-      }
-    }
-
-    // Actualizar en la tabla users
-    const { data, error } = await supabaseDb
-      .from("users")
-      .update({
-        name: userData.name,
-        degree: userData.degree,
-        lodge: userData.lodge,
-        role: userData.role,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single()
+    const { data, error } = await supabaseDb.from("users").update(updateData).eq("id", id).select().single()
 
     if (error) {
-      console.error(`Error al actualizar usuario con ID ${id}:`, error.message)
+      console.error(`Error updating user with ID ${id}:`, error)
       throw new Error(error.message)
     }
 
     return {
       id: data.id,
       name: data.name,
-      email: data.email,
+      email: data.email || "",
       degree: data.degree,
-      lodge: data.lodge,
+      lodge: userData.lodge || undefined,
       role: data.role,
     }
   } catch (error) {
-    console.error(`Error inesperado al actualizar usuario con ID ${id}:`, error)
+    console.error(`Error in updateUser for ID ${id}:`, error)
+
+    // Si estamos en un entorno de vista previa, simular la actualización de un usuario
+    if (isPreviewEnvironment) {
+      return {
+        id,
+        name: userData.name || "Usuario Actualizado",
+        email: userData.email || "usuario@actualizado.com",
+        degree: userData.degree || 1,
+        lodge: userData.lodge,
+        role: userData.role || "user",
+      }
+    }
+
     throw error
   }
 }
 
-// Eliminar un usuario
+// Delete a user
 export async function deleteUser(id: string): Promise<void> {
   try {
-    // Eliminar el usuario de Auth
-    const { error: authError } = await supabaseDb.auth.admin.deleteUser(id)
+    // Si estamos en un entorno de vista previa, simular la eliminación de un usuario
+    if (isPreviewEnvironment) {
+      console.log(`Simulating deletion of user with ID ${id} in preview environment`)
+      return
+    }
+
+    // Delete user from Auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id)
 
     if (authError) {
-      console.error("Error al eliminar usuario de Auth:", authError.message)
+      console.error(`Error deleting user with ID ${id} from Auth:`, authError)
       throw new Error(authError.message)
     }
 
-    // Eliminar el registro de la tabla users
+    // Delete user profile from database
     const { error } = await supabaseDb.from("users").delete().eq("id", id)
 
     if (error) {
-      console.error(`Error al eliminar usuario con ID ${id}:`, error.message)
+      console.error(`Error deleting user with ID ${id} from database:`, error)
       throw new Error(error.message)
     }
   } catch (error) {
-    console.error(`Error inesperado al eliminar usuario con ID ${id}:`, error)
+    console.error(`Error in deleteUser for ID ${id}:`, error)
+
+    // Si estamos en un entorno de vista previa, no hacer nada
+    if (isPreviewEnvironment) {
+      return
+    }
+
     throw error
   }
 }

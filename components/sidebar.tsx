@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { BookOpen, Home, Upload, Users, LogOut, Menu, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/components/auth-provider" // Use the hook instead of importing AuthContext directly
 import { useSidebar } from "@/hooks/use-sidebar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useEffect, useState } from "react"

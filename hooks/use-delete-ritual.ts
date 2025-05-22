@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { deleteRitual } from "@/lib/rituals"
+import { deleteRitual } from "@/lib/ritual-service"
 import { useToast } from "@/hooks/use-toast"
 
 export function useDeleteRitual() {
@@ -29,7 +29,7 @@ export function useDeleteRitual() {
         })
       }
     } catch (error) {
-      console.error("Error al eliminar ritual:", error)
+      console.error("Error deleting ritual:", error)
       toast({
         title: "Error",
         description: "Ocurrió un error al eliminar el ritual. Por favor, inténtalo de nuevo.",
