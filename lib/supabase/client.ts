@@ -1,5 +1,5 @@
-import { createBrowserClient } from "@supabase/ssr"
-import type { Database } from "@/types/database"
+// Este archivo ahora es un proxy para mantener compatibilidad con código existente
+import { getSupabaseClient } from "@/lib/supabase-singleton"
 // Importa la función
 import { isProductionMode } from "@/lib/env"
 
@@ -193,17 +193,10 @@ const createMockClient = () => {
 }
 
 // Crear y exportar una instancia del cliente para uso en el navegador
-export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("Supabase URL or Anon Key is missing")
-    throw new Error("Supabase configuration is missing")
-  }
-
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
+// Exportar el cliente singleton
+export const createClient = () => {
+  return getSupabaseClient()
 }
 
 // Exportar una instancia del cliente
-export const supabaseDb = createClient()
+export const supabaseDb = getSupabaseClient()

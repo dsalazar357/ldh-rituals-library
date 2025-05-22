@@ -1,18 +1,18 @@
-import { createClient as createClientBrowser } from "@/lib/supabase/client"
 import { createServerClient } from "@supabase/ssr"
 import type { Database } from "@/types/database"
 import type { cookies } from "next/headers"
+import { getSupabaseClient } from "@/lib/supabase-singleton"
 
-// Export supabaseDb from client
-export { supabaseDb } from "@/lib/supabase/client"
+// Export supabaseDb from singleton
+export const supabaseDb = getSupabaseClient()
 
-// Create Supabase client for auth operations
-export const supabaseAuth = createClientBrowser()
+// Export supabaseAuth from singleton
+export const supabaseAuth = getSupabaseClient()
 
 // Function to create a server client with cookies
 export const createClient = (cookieStore?: ReturnType<typeof cookies>) => {
   if (!cookieStore) {
-    return createClientBrowser()
+    return getSupabaseClient()
   }
 
   return createServerClient<Database>(
@@ -37,7 +37,7 @@ export const createClient = (cookieStore?: ReturnType<typeof cookies>) => {
 // Función para crear el cliente de Supabase Admin
 export const createAdminClient = (cookieStore?: ReturnType<typeof cookies>) => {
   if (!cookieStore) {
-    return createClientBrowser()
+    return getSupabaseClient()
   }
 
   return createServerClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
