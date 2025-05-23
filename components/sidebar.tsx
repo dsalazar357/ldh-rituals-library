@@ -99,7 +99,7 @@ export function Sidebar() {
         label: "Panel Admin",
         icon: Settings,
         href: "/admin",
-        active: pathname === "/admin",
+        active: pathname === "/admin" || pathname.startsWith("/admin/"),
         adminOnly: true,
       },
       {

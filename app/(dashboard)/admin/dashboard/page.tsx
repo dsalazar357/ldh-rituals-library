@@ -136,13 +136,6 @@ export default function AdminDashboardPage() {
             Como administrador, tienes acceso completo a todas las funcionalidades del sistema. Recuerda que con grandes
             poderes vienen grandes responsabilidades.
           </p>
-          <div className="mt-4">
-            <p className="text-sm font-medium">Usuario actual:</p>
-            <p className="text-sm text-muted-foreground">
-              {user.name} ({user.email})
-            </p>
-            <p className="text-sm text-muted-foreground">Rol: {user.role}</p>
-          </div>
         </CardContent>
       </Card>
     </div>
