@@ -68,22 +68,16 @@ export async function middleware(req: NextRequest) {
     const { data } = await supabase.auth.getSession()
     const session = data?.session
 
+    console.log(`Middleware: Ruta=${pathname}, Sesión=${session ? "Activa" : "Inactiva"}, Pública=${isPublicRoute}`)
+
     // Si no hay sesión y la ruta no es pública, redirigir a login
     if (!session && !isPublicRoute) {
+      console.log(`Middleware: Redirigiendo a login desde ${pathname} (no hay sesión)`)
       return NextResponse.redirect(new URL("/login", req.url))
     }
 
-    // Si hay sesión y la ruta es pública (como /login), redirigir al dashboard
-    if (session && isPublicRoute) {
-      return NextResponse.redirect(new URL("/", req.url))
-    }
-
-    // Para rutas de admin, verificar permisos pero sin consultar la base de datos
-    // para evitar errores en el middleware
-    if (pathname.startsWith("/admin") && !pathname.includes("admin-debug") && !pathname.includes("admin-check")) {
-      // Simplemente permitir el acceso y dejar que la página maneje la verificación
-      return res
-    }
+    // NO redirigir automáticamente desde rutas públicas si hay sesión
+    // Dejar que el usuario navegue manualmente
 
     return res
   } catch (error) {

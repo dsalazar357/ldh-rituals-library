@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,31 +14,13 @@ import { useAuth } from "@/hooks/use-auth"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { signIn, user, isLoading: authLoading } = useAuth()
+  const { signIn } = useAuth()
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loginSuccess, setLoginSuccess] = useState(false)
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  // Verificar si ya hay una sesión activa
-  useEffect(() => {
-    if (user) {
-      console.log("Usuario ya autenticado, redirigiendo...")
-      router.push("/")
-    }
-  }, [user, router])
-
-  // Limpiar el timeout al desmontar el componente
-  useEffect(() => {
-    return () => {
-      if (redirectTimeoutRef.current) {
-        clearTimeout(redirectTimeoutRef.current)
-      }
-    }
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,11 +36,10 @@ export default function LoginPage() {
         console.log("Sesión iniciada correctamente")
         setLoginSuccess(true)
 
-        // Forzar redirección después de un breve retraso
-        redirectTimeoutRef.current = setTimeout(() => {
-          console.log("Ejecutando redirección forzada...")
-          window.location.href = "/"
-        }, 1500)
+        // Redirección manual después del éxito
+        setTimeout(() => {
+          router.push("/")
+        }, 1000)
       } else {
         setError("Credenciales incorrectas. Por favor, inténtalo de nuevo.")
         setIsLoading(false)
@@ -116,7 +97,7 @@ export default function LoginPage() {
               disabled={isLoading || loginSuccess}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading || loginSuccess || authLoading}>
+          <Button type="submit" className="w-full" disabled={isLoading || loginSuccess}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

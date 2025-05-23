@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,23 +11,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function AdminDashboardPage() {
   const { user, isLoading } = useAuth()
-  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  useEffect(() => {
-    // Solo verificar después de que el componente esté montado y la autenticación haya cargado
-    if (mounted && !isLoading) {
-      // Si no hay usuario o no es admin, redirigir al dashboard
-      if (!user || user.role !== "admin") {
-        console.log("No tienes permisos de administrador. Redirigiendo...")
-        router.push("/")
-      }
-    }
-  }, [user, isLoading, mounted, router])
 
   // Mostrar un estado de carga mientras se verifica
   if (isLoading || !mounted) {
@@ -45,8 +32,28 @@ export default function AdminDashboardPage() {
     )
   }
 
-  // Si no es admin pero aún no se ha redirigido, mostrar mensaje de error
-  if (!user || user.role !== "admin") {
+  // Si no hay usuario, mostrar mensaje para iniciar sesión
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <DashboardHeader
+          title="Acceso Requerido"
+          description="Necesitas iniciar sesión para acceder al panel de administración"
+        />
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Sesión Requerida</AlertTitle>
+          <AlertDescription>Debes iniciar sesión para acceder a esta área.</AlertDescription>
+        </Alert>
+        <Link href="/login">
+          <Button>Iniciar Sesión</Button>
+        </Link>
+      </div>
+    )
+  }
+
+  // Si no es admin, mostrar mensaje de error sin redirección automática
+  if (user.role !== "admin") {
     return (
       <div className="space-y-6">
         <DashboardHeader
@@ -56,11 +63,17 @@ export default function AdminDashboardPage() {
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Acceso Denegado</AlertTitle>
-          <AlertDescription>
-            Esta área está restringida a usuarios con rol de administrador. Serás redirigido al panel principal.
-          </AlertDescription>
+          <AlertDescription>Esta área está restringida a usuarios con rol de administrador.</AlertDescription>
         </Alert>
-        <Button onClick={() => router.push("/")}>Volver al Panel Principal</Button>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Usuario actual: {user.name} ({user.email})
+          </p>
+          <p className="text-sm text-muted-foreground">Rol actual: {user.role}</p>
+        </div>
+        <Link href="/">
+          <Button>Volver al Panel Principal</Button>
+        </Link>
       </div>
     )
   }
@@ -120,28 +133,25 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
-      <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+      <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Shield className="h-5 w-5 mr-2 text-amber-600 dark:text-amber-400" />
-            Área de Administración
+            <Shield className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
+            Área de Administración - Acceso Autorizado
           </CardTitle>
           <CardDescription>
-            Esta área está restringida a usuarios con rol de administrador. Todas las acciones realizadas aquí quedan
-            registradas en el sistema.
+            Bienvenido al panel de administración. Todas las acciones realizadas aquí quedan registradas en el sistema.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Como administrador, tienes acceso completo a todas las funcionalidades del sistema. Recuerda que con grandes
-            poderes vienen grandes responsabilidades.
-          </p>
-          <div className="mt-4">
+          <div className="space-y-2">
             <p className="text-sm font-medium">Usuario actual:</p>
             <p className="text-sm text-muted-foreground">
               {user.name} ({user.email})
             </p>
             <p className="text-sm text-muted-foreground">Rol: {user.role}</p>
+            <p className="text-sm text-muted-foreground">Grado: {user.degree}°</p>
+            {user.lodge && <p className="text-sm text-muted-foreground">Logia: {user.lodge}</p>}
           </div>
         </CardContent>
       </Card>
