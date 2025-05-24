@@ -91,7 +91,7 @@ export default function RitualsPage() {
       const ritualsResponse = await fetch("/api/debug")
       if (ritualsResponse.ok) {
         const debugData = await ritualsResponse.json()
-        console.log("Datos de debug:", debugData)
+        console.log("Datos de debug completos:", debugData)
 
         if (debugData.stats && debugData.stats.rituals) {
           // Si tenemos stats, usar esos datos
@@ -123,33 +123,49 @@ export default function RitualsPage() {
   }
 
   const organizedRituals = useMemo(() => {
-    console.log("Organizando rituales:", rituals)
+    console.log("=== ORGANIZANDO RITUALES ===")
+    console.log("Rituales totales:", rituals)
+    console.log("Usuario:", user)
 
     if (!rituals || !Array.isArray(rituals)) {
       console.log("No hay rituales válidos para organizar")
       return {}
     }
 
-    // Filtrar rituales por grado del usuario y filtros aplicados
-    let filteredRituals = rituals.filter((ritual) => {
-      const userDegree = user?.degree || 0
-      const ritualDegree = ritual.degree || 0
-      return ritualDegree <= userDegree
-    })
+    // TEMPORAL: Mostrar todos los rituales sin filtro de grado para debug
+    let filteredRituals = [...rituals]
+
+    // Solo aplicar filtro de grado si el usuario NO es admin
+    if (user && user.role !== "admin") {
+      const userDegree = user.degree || 0
+      console.log("Aplicando filtro de grado. Usuario grado:", userDegree)
+
+      filteredRituals = rituals.filter((ritual) => {
+        const ritualDegree = ritual.degree || 0
+        const canAccess = ritualDegree <= userDegree
+        console.log(`Ritual "${ritual.name}" (grado ${ritualDegree}) - Usuario puede acceder: ${canAccess}`)
+        return canAccess
+      })
+    } else {
+      console.log("Usuario es admin o no hay usuario, mostrando todos los rituales")
+    }
 
     console.log("Rituales después de filtrar por grado:", filteredRituals.length)
 
     // Aplicar filtros adicionales
     if (filters.degree) {
       filteredRituals = filteredRituals.filter((ritual) => ritual.degree === filters.degree)
+      console.log("Rituales después de filtrar por grado específico:", filteredRituals.length)
     }
 
     if (filters.ritualSystem) {
       filteredRituals = filteredRituals.filter((ritual) => ritual.ritualSystem === filters.ritualSystem)
+      console.log("Rituales después de filtrar por rito:", filteredRituals.length)
     }
 
     if (filters.language) {
       filteredRituals = filteredRituals.filter((ritual) => ritual.language === filters.language)
+      console.log("Rituales después de filtrar por idioma:", filteredRituals.length)
     }
 
     if (filters.search) {
@@ -158,9 +174,8 @@ export default function RitualsPage() {
           ritual.name.toLowerCase().includes(filters.search!.toLowerCase()) ||
           ritual.author.toLowerCase().includes(filters.search!.toLowerCase()),
       )
+      console.log("Rituales después de filtrar por búsqueda:", filteredRituals.length)
     }
-
-    console.log("Rituales después de todos los filtros:", filteredRituals.length)
 
     // Organizar por el criterio seleccionado
     const organized: Record<string, typeof filteredRituals> = {}
@@ -189,9 +204,9 @@ export default function RitualsPage() {
       organized[key].push(ritual)
     })
 
-    console.log("Rituales organizados:", organized)
+    console.log("Rituales organizados finales:", organized)
     return organized
-  }, [rituals, filters, user?.degree])
+  }, [rituals, filters, user])
 
   const handleDelete = async (ritualId: string) => {
     try {
@@ -268,17 +283,22 @@ export default function RitualsPage() {
         </Link>
       </div>
 
-      {/* Debug info */}
-      {process.env.NODE_ENV === "development" && (
-        <Alert>
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Debug Info</AlertTitle>
-          <AlertDescription>
-            Usuario: {user?.email} (Grado: {user?.degree}) | Rituales cargados: {rituals.length} | Rituales organizados:{" "}
-            {Object.keys(organizedRituals).length} categorías
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Debug info mejorado */}
+      <Alert>
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Debug Info</AlertTitle>
+        <AlertDescription>
+          <div className="space-y-1 text-sm">
+            <div>
+              Usuario: {user?.email} (Rol: {user?.role}, Grado: {user?.degree})
+            </div>
+            <div>Rituales cargados: {rituals.length}</div>
+            <div>Rituales organizados: {Object.keys(organizedRituals).length} categorías</div>
+            <div>Total rituales visibles: {Object.values(organizedRituals).flat().length}</div>
+            <div>Filtros activos: {JSON.stringify(filters)}</div>
+          </div>
+        </AlertDescription>
+      </Alert>
 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Filtros */}
@@ -506,6 +526,16 @@ export default function RitualsPage() {
                   <p className="text-sm text-muted-foreground mt-2">
                     Total de rituales en la base de datos: {rituals.length}
                   </p>
+                  {rituals.length > 0 && (
+                    <div className="mt-4 text-xs text-muted-foreground">
+                      <p>Rituales disponibles:</p>
+                      {rituals.map((ritual, index) => (
+                        <p key={ritual.id}>
+                          {index + 1}. {ritual.name} (Grado {ritual.degree})
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
