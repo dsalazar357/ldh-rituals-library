@@ -1,10 +1,17 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react"
 import type { User } from "@/types/user"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseClient } from "@/lib/supabase-singleton"
+import { useSetAtom } from "jotai"
+import { userAtom, sessionAtom, isLoadingAtom } from "@/stores/authAtoms"
 
 type AuthContextType = {
   user: User | null
@@ -21,22 +28,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const initializedRef = useRef(false)
-  const authSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null)
 
-  // Función para cargar datos del usuario
+  const setUserAtom = useSetAtom(userAtom)
+  const setSessionAtom = useSetAtom(sessionAtom)
+  const setIsLoadingAtom = useSetAtom(isLoadingAtom)
+
+  useEffect(() => {
+    setUserAtom(user)
+  }, [user, setUserAtom])
+
+  useEffect(() => {
+    setSessionAtom(session)
+  }, [session, setSessionAtom])
+
+  useEffect(() => {
+    setIsLoadingAtom(isLoading)
+  }, [isLoading, setIsLoadingAtom])
+
   const loadUserData = useCallback(async (userId: string, userEmail: string) => {
     try {
-      console.log("Cargando datos del usuario:", userId)
       const supabase = getSupabaseClient()
-      const { data: userData, error } = await supabase.from("users").select("*").eq("id", userId).single()
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", userId)
+        .single()
 
       if (error || !userData) {
         console.error("Error al cargar datos del usuario:", error)
         return null
       }
-
-      console.log("Datos del usuario cargados correctamente:", userData.name, "Rol:", userData.role)
 
       return {
         id: userData.id,
@@ -52,26 +73,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Función para refrescar los datos del usuario
   const refreshUserData = useCallback(async () => {
-    if (!session?.user.id) return
+    const supabase = getSupabaseClient()
+    const { data: sessionData } = await supabase.auth.getSession()
+    const currentSession = sessionData.session
 
-    try {
-      console.log("Refrescando datos del usuario")
-      const userData = await loadUserData(session.user.id, session.user.email || "")
-      if (userData) {
-        setUser(userData)
-        console.log("Datos del usuario actualizados:", userData.name, "Rol:", userData.role)
-      }
-    } catch (error) {
-      console.error("Error al refrescar datos del usuario:", error)
-    }
-  }, [session, loadUserData])
+    if (!currentSession) return
 
-  // Función para iniciar sesión
+    setSession(currentSession)
+    const userData = await loadUserData(currentSession.user.id, currentSession.user.email || "")
+    if (userData) setUser(userData)
+  }, [loadUserData])
+
   const signIn = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log("AuthProvider: Iniciando sesión con", email)
       const supabase = getSupabaseClient()
 
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -79,51 +94,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
       })
 
-      if (error) {
-        console.error("Error al iniciar sesión:", error.message)
+      if (error || !data.session || !data.user) {
+        console.error("Error al iniciar sesión:", error)
         return false
       }
 
-      if (!data.session || !data.user) {
-        console.error("No se obtuvo sesión o usuario al iniciar sesión")
-        return false
-      }
-
-      console.log("Sesión iniciada correctamente:", data.session.access_token.substring(0, 10) + "...")
-
-      // Obtener datos del usuario desde la base de datos
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", data.user.id)
-        .single()
-
-      if (userError) {
-        console.error("Error al obtener datos del usuario:", userError.message)
-        return false
-      }
-
-      console.log("Datos del usuario obtenidos:", userData.name, "Rol:", userData.role)
-
-      // Actualizar estado
-      setSession(data.session)
-      setUser({
-        id: userData.id,
-        name: userData.name,
-        email: data.user.email || "",
-        degree: userData.degree,
-        lodge: userData.lodge || undefined,
-        role: userData.role,
+      // Establecer cookies manualmente
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
       })
+
+      setSession(data.session)
+
+      const userData = await loadUserData(data.user.id, data.user.email || "")
+      if (userData) setUser(userData)
 
       return true
     } catch (error) {
       console.error("Error inesperado al iniciar sesión:", error)
       return false
     }
-  }, [])
+  }, [loadUserData])
 
-  // Memoizar la función signOut para evitar re-renders
   const signOut = useCallback(async () => {
     try {
       const supabase = getSupabaseClient()
@@ -137,70 +130,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Efecto para inicializar la autenticación (solo se ejecuta una vez)
   useEffect(() => {
-    if (initializedRef.current) return
-    initializedRef.current = true
-
-    const initializeAuth = async () => {
+    const initialize = async () => {
       try {
         setIsLoading(true)
-        const supabase = getSupabaseClient()
-
-        // Obtener sesión actual
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-
-        if (sessionError) {
-          console.error("Error al obtener sesión:", sessionError)
-          setIsLoading(false)
-          return
-        }
-
-        console.log("Sesión inicial:", sessionData.session ? "Activa" : "No hay sesión")
-
-        if (sessionData.session) {
-          setSession(sessionData.session)
-          const userData = await loadUserData(sessionData.session.user.id, sessionData.session.user.email || "")
-          setUser(userData)
-        }
-
-        // Suscribirse a cambios de autenticación
-        const { data } = supabase.auth.onAuthStateChange(async (event, _session) => {
-          console.log("Evento de autenticación:", event)
-
-          if (event === "SIGNED_IN" && _session) {
-            console.log("Usuario ha iniciado sesión:", _session.user.email)
-            setSession(_session)
-            const userData = await loadUserData(_session.user.id, _session.user.email || "")
-            setUser(userData)
-          } else if (event === "SIGNED_OUT") {
-            console.log("Usuario ha cerrado sesión")
-            setUser(null)
-            setSession(null)
-          } else if (event === "TOKEN_REFRESHED" && _session) {
-            console.log("Token refrescado")
-            setSession(_session)
-          }
-        })
-
-        // Guardar la suscripción para limpiarla después
-        authSubscriptionRef.current = data.subscription
-      } catch (error) {
-        console.error("Error al inicializar autenticación:", error)
+        await refreshUserData()
       } finally {
         setIsLoading(false)
       }
     }
 
-    initializeAuth()
-
-    // Limpiar suscripción al desmontar
-    return () => {
-      if (authSubscriptionRef.current) {
-        authSubscriptionRef.current.unsubscribe()
-      }
-    }
-  }, [loadUserData])
+    initialize()
+  }, [refreshUserData])
 
   const value = {
     user,

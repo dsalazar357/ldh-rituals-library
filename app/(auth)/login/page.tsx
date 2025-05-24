@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,11 +35,6 @@ export default function LoginPage() {
       if (success) {
         console.log("Sesión iniciada correctamente")
         setLoginSuccess(true)
-
-        // Redirección manual después del éxito
-        setTimeout(() => {
-          router.push("/")
-        }, 1000)
       } else {
         setError("Credenciales incorrectas. Por favor, inténtalo de nuevo.")
         setIsLoading(false)
@@ -50,6 +45,10 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
+  useEffect( () => {
+    if(loginSuccess) router.push("/")
+  }, [loginSuccess]);
 
   return (
     <Card>
