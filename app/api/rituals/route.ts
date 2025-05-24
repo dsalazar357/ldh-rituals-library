@@ -1,0 +1,23 @@
+import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
+
+export async function GET() {
+  try {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+    const { data: rituals, error } = await supabase
+      .from("rituals")
+      .select("*")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching rituals:", error)
+      return NextResponse.json({ error: "Error al obtener rituales" }, { status: 500 })
+    }
+
+    return NextResponse.json({ rituals: rituals || [] })
+  } catch (error) {
+    console.error("Error in rituals API:", error)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 })
+  }
+}
