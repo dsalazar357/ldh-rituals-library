@@ -73,23 +73,49 @@ export default function RitualsPage() {
   const loadData = async () => {
     try {
       setLoading(true)
+      setError(null)
+
+      console.log("Cargando datos...")
 
       // Cargar usuario
       const userResponse = await fetch("/api/debug")
       if (userResponse.ok) {
         const userData = await userResponse.json()
+        console.log("Usuario cargado:", userData.user)
         setUser(userData.user)
+      } else {
+        console.error("Error al cargar usuario:", userResponse.status)
       }
 
-      // Cargar rituales
-      const ritualsResponse = await fetch("/api/rituals")
+      // Cargar rituales usando el mismo endpoint que el dashboard
+      const ritualsResponse = await fetch("/api/debug")
       if (ritualsResponse.ok) {
-        const ritualsData = await ritualsResponse.json()
-        setRituals(ritualsData.rituals || [])
+        const debugData = await ritualsResponse.json()
+        console.log("Datos de debug:", debugData)
+
+        if (debugData.stats && debugData.stats.rituals) {
+          // Si tenemos stats, usar esos datos
+          const ritualsData = debugData.stats.rituals
+          console.log("Rituales desde stats:", ritualsData)
+          setRituals(ritualsData)
+        } else {
+          // Intentar cargar desde el endpoint específico de rituales
+          const altResponse = await fetch("/api/rituals")
+          if (altResponse.ok) {
+            const altData = await altResponse.json()
+            console.log("Rituales desde /api/rituals:", altData)
+            setRituals(altData.rituals || [])
+          } else {
+            console.error("Error en ambos endpoints de rituales")
+            setError("Error al cargar los rituales")
+          }
+        }
       } else {
-        setError("Error al cargar los rituales")
+        console.error("Error al cargar datos:", ritualsResponse.status)
+        setError("Error al cargar los datos")
       }
     } catch (err) {
+      console.error("Error de conexión:", err)
       setError("Error de conexión")
     } finally {
       setLoading(false)
@@ -97,12 +123,21 @@ export default function RitualsPage() {
   }
 
   const organizedRituals = useMemo(() => {
+    console.log("Organizando rituales:", rituals)
+
     if (!rituals || !Array.isArray(rituals)) {
+      console.log("No hay rituales válidos para organizar")
       return {}
     }
 
     // Filtrar rituales por grado del usuario y filtros aplicados
-    let filteredRituals = rituals.filter((ritual) => ritual.degree <= (user?.degree || 0))
+    let filteredRituals = rituals.filter((ritual) => {
+      const userDegree = user?.degree || 0
+      const ritualDegree = ritual.degree || 0
+      return ritualDegree <= userDegree
+    })
+
+    console.log("Rituales después de filtrar por grado:", filteredRituals.length)
 
     // Aplicar filtros adicionales
     if (filters.degree) {
@@ -125,6 +160,8 @@ export default function RitualsPage() {
       )
     }
 
+    console.log("Rituales después de todos los filtros:", filteredRituals.length)
+
     // Organizar por el criterio seleccionado
     const organized: Record<string, typeof filteredRituals> = {}
 
@@ -136,10 +173,10 @@ export default function RitualsPage() {
           key = `Grado ${ritual.degree}`
           break
         case "ritualSystem":
-          key = ritual.ritualSystem
+          key = ritual.ritualSystem || "Sin rito"
           break
         case "language":
-          key = ritual.language
+          key = ritual.language || "Sin idioma"
           break
         default:
           key = `Grado ${ritual.degree}`
@@ -152,6 +189,7 @@ export default function RitualsPage() {
       organized[key].push(ritual)
     })
 
+    console.log("Rituales organizados:", organized)
     return organized
   }, [rituals, filters, user?.degree])
 
@@ -229,6 +267,18 @@ export default function RitualsPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Debug info */}
+      {process.env.NODE_ENV === "development" && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Debug Info</AlertTitle>
+          <AlertDescription>
+            Usuario: {user?.email} (Grado: {user?.degree}) | Rituales cargados: {rituals.length} | Rituales organizados:{" "}
+            {Object.keys(organizedRituals).length} categorías
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="flex flex-col md:flex-row gap-6">
         {/* Filtros */}
@@ -394,11 +444,11 @@ export default function RitualsPage() {
           ) : (
             <div className="space-y-6">
               {Object.keys(organizedRituals).length > 0 ? (
-                Object.entries(organizedRituals).map(([category, rituals]) => (
+                Object.entries(organizedRituals).map(([category, categoryRituals]) => (
                   <div key={category} className="space-y-4">
                     <h3 className="text-lg font-semibold">{category}</h3>
                     <div className="grid gap-4 md:grid-cols-2">
-                      {rituals.map((ritual) => (
+                      {categoryRituals.map((ritual) => (
                         <Card key={ritual.id} className="p-4">
                           <div className="flex items-start gap-4">
                             <div className="bg-muted rounded-lg p-2">
@@ -453,6 +503,9 @@ export default function RitualsPage() {
               ) : (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">No se encontraron rituales con los filtros seleccionados.</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Total de rituales en la base de datos: {rituals.length}
+                  </p>
                 </div>
               )}
             </div>
