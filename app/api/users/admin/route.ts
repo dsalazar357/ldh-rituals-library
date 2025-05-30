@@ -5,55 +5,18 @@ import type { Database } from "@/types/database"
 
 export async function POST(request: Request) {
   try {
-    // Inicializar el cliente de Supabase
-    const cookieStore = cookies()
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: { path: string; domain?: string }) {
-            cookieStore.set({ name, value: "", ...options, maxAge: 0 })
-          },
-        },
-      },
-    )
-
-    // Verificar que el usuario actual es un administrador
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 })
-    }
-
-    // Obtener el rol del usuario actual
-    const { data: currentUser, error: userError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", session.user.id)
-      .single()
-
-    if (userError || !currentUser || currentUser.role !== "admin") {
-      return NextResponse.json({ error: "Solo los administradores pueden crear usuarios" }, { status: 403 })
-    }
-
-    // Procesar la solicitud para crear un nuevo usuario
     const userData = await request.json()
 
+    console.log("=== POST /api/users/admin ===")
+    console.log("Creating user with data:", userData)
+
     if (!userData.email || !userData.name) {
-      return NextResponse.json({ error: "Email y nombre son obligatorios" }, { status: 400 })
+      return NextResponse.json({ error: "Email and name are required" }, { status: 400 })
     }
 
-    // Crear cliente con rol de servicio para operaciones administrativas
-    const adminSupabase = createServerClient<Database>(
+    // Initialize Supabase client with service role key for admin operations
+    const cookieStore = await cookies()
+    const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {
@@ -61,50 +24,68 @@ export async function POST(request: Request) {
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+          set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options })
           },
-          remove(name: string, options: { path: string; domain?: string }) {
+          remove(name: string, options: any) {
             cookieStore.set({ name, value: "", ...options, maxAge: 0 })
           },
         },
       },
     )
 
-    // Crear usuario en Auth
-    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+    // Generate a random password if not provided
+    const password = userData.password || Math.random().toString(36).slice(-8) + "A1!"
+
+    console.log("Creating user in Auth with email:", userData.email)
+
+    // Create user in Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: userData.email,
-      password: userData.password || Math.random().toString(36).slice(-8),
+      password: password,
       email_confirm: true,
+      user_metadata: {
+        name: userData.name,
+      },
     })
 
     if (authError) {
       console.error("Error creating user in Auth:", authError)
-      return NextResponse.json({ error: authError.message }, { status: 500 })
+      return NextResponse.json({ error: `Auth creation failed: ${authError.message}` }, { status: 500 })
     }
 
     if (!authData.user) {
       return NextResponse.json({ error: "Failed to create user in Auth" }, { status: 500 })
     }
 
-    // Crear perfil de usuario en la base de datos
-    const { data, error } = await adminSupabase
-      .from("users")
-      .insert({
-        id: authData.user.id,
-        name: userData.name,
-        email: userData.email,
-        degree: userData.degree || 1,
-        lodge: userData.lodge || null,
-        role: userData.role || "user",
-      })
-      .select()
-      .single()
+    console.log("User created in Auth:", authData.user.id)
+
+    // Create user profile in database
+    const userProfile = {
+      id: authData.user.id,
+      name: userData.name,
+      email: userData.email,
+      degree: userData.degree || 1,
+      lodge: userData.lodge || null,
+      role: userData.role || "user",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    console.log("Creating user profile in database:", userProfile)
+
+    const { data, error } = await supabase.from("users").insert(userProfile).select().single()
 
     if (error) {
       console.error("Error creating user profile:", error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+
+      // If database insert fails, clean up the auth user
+      await supabase.auth.admin.deleteUser(authData.user.id)
+
+      return NextResponse.json({ error: `Database creation failed: ${error.message}` }, { status: 500 })
     }
+
+    console.log("User created successfully:", data)
 
     return NextResponse.json({
       user: {
@@ -115,9 +96,10 @@ export async function POST(request: Request) {
         lodge: data.lodge,
         role: data.role,
       },
+      temporaryPassword: userData.password ? undefined : password, // Only return if auto-generated
     })
   } catch (error: any) {
-    console.error("Unexpected error:", error)
+    console.error("Unexpected error in POST /api/users/admin:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },

@@ -10,11 +10,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     console.log("=== PUT /api/users/[id] ===")
     console.log("User ID:", id)
-    console.log("User ID type:", typeof id)
-    console.log("User ID length:", id.length)
     console.log("Update data:", userData)
 
-    // Initialize Supabase client with proper cookie handling
+    // Initialize Supabase client with service role key
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,24 +32,18 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       },
     )
 
-    // First, check if the user exists and get current data
+    // First, verify the user exists
     const { data: existingUsers, error: checkError } = await supabase.from("users").select("*").eq("id", id)
 
-    console.log("Existing users query result:", { existingUsers, checkError })
-    console.log("Number of existing users found:", existingUsers?.length || 0)
+    console.log("User existence check:", { existingUsers, checkError })
 
     if (checkError) {
-      console.error("Error checking existing user:", checkError)
-      return NextResponse.json({ error: `Failed to check user: ${checkError.message}` }, { status: 500 })
+      console.error("Error checking user existence:", checkError)
+      return NextResponse.json({ error: `Failed to verify user: ${checkError.message}` }, { status: 500 })
     }
 
     if (!existingUsers || existingUsers.length === 0) {
       console.error("User not found:", id)
-
-      // Let's also try to find users with similar IDs for debugging
-      const { data: allUsers } = await supabase.from("users").select("id, name, email").limit(10)
-      console.log("All users in database (first 10):", allUsers)
-
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
@@ -60,88 +52,67 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // Update auth data if email or password is provided
     if (userData.email || userData.password) {
-      const updateData: any = {}
-      if (userData.email) updateData.email = userData.email
-      if (userData.password) updateData.password = userData.password
+      const authUpdateData: any = {}
+      if (userData.email && userData.email !== existingUser.email) {
+        authUpdateData.email = userData.email
+      }
+      if (userData.password) {
+        authUpdateData.password = userData.password
+      }
 
-      console.log("Updating auth data:", updateData)
+      if (Object.keys(authUpdateData).length > 0) {
+        console.log("Updating auth data:", authUpdateData)
 
-      const { error: authError } = await supabase.auth.admin.updateUserById(id, updateData)
+        const { error: authError } = await supabase.auth.admin.updateUserById(id, authUpdateData)
 
-      if (authError) {
-        console.error("Error updating user auth data:", authError)
-        return NextResponse.json({ error: `Auth update failed: ${authError.message}` }, { status: 500 })
+        if (authError) {
+          console.error("Error updating auth data:", authError)
+          return NextResponse.json({ error: `Auth update failed: ${authError.message}` }, { status: 500 })
+        }
       }
     }
 
-    // Prepare update data - only include fields that are actually changing
-    const updateData: any = {}
+    // Prepare database update
+    const dbUpdateData: any = {
+      updated_at: new Date().toISOString(),
+    }
 
+    // Only include fields that are provided and different
     if (userData.name !== undefined && userData.name !== existingUser.name) {
-      updateData.name = userData.name
+      dbUpdateData.name = userData.name
     }
     if (userData.email !== undefined && userData.email !== existingUser.email) {
-      updateData.email = userData.email
+      dbUpdateData.email = userData.email
     }
     if (userData.degree !== undefined && userData.degree !== existingUser.degree) {
-      updateData.degree = userData.degree
+      dbUpdateData.degree = userData.degree
     }
     if (userData.lodge !== undefined && userData.lodge !== existingUser.lodge) {
-      updateData.lodge = userData.lodge
+      dbUpdateData.lodge = userData.lodge
     }
     if (userData.role !== undefined && userData.role !== existingUser.role) {
-      updateData.role = userData.role
+      dbUpdateData.role = userData.role
     }
 
-    console.log("Final update data (only changed fields):", updateData)
+    console.log("Database update data:", dbUpdateData)
 
-    // If no fields are changing, return the existing user
-    if (Object.keys(updateData).length === 0) {
-      console.log("No fields to update, returning existing user")
-      return NextResponse.json({
-        user: {
-          id: existingUser.id,
-          name: existingUser.name,
-          email: existingUser.email,
-          degree: existingUser.degree,
-          lodge: existingUser.lodge,
-          role: existingUser.role,
-        },
-      })
-    }
-
-    // Add updated_at timestamp
-    updateData.updated_at = new Date().toISOString()
-
-    console.log("Executing update query...")
-
-    // Perform the update
+    // Always update the updated_at timestamp, even if no other fields changed
     const { data: updatedData, error: updateError } = await supabase
       .from("users")
-      .update(updateData)
+      .update(dbUpdateData)
       .eq("id", id)
       .select("*")
 
-    console.log("Update query result:", { updatedData, updateError })
+    console.log("Update result:", { updatedData, updateError })
 
     if (updateError) {
-      console.error(`Error updating user with ID ${id}:`, updateError)
+      console.error("Database update error:", updateError)
       return NextResponse.json({ error: `Database update failed: ${updateError.message}` }, { status: 500 })
     }
 
     if (!updatedData || updatedData.length === 0) {
-      console.error("No rows updated for user:", id)
-
-      // Try to fetch the user again to see if it still exists
-      const { data: recheckUser } = await supabase.from("users").select("*").eq("id", id)
-      console.log("User recheck after failed update:", recheckUser)
-
-      return NextResponse.json({ error: "No user was updated - user may have been deleted" }, { status: 404 })
-    }
-
-    if (updatedData.length > 1) {
-      console.error("Multiple rows updated for user:", id, updatedData.length)
-      return NextResponse.json({ error: "Multiple users updated - data integrity issue" }, { status: 500 })
+      console.error("No rows updated - this should not happen")
+      return NextResponse.json({ error: "Update failed - no rows affected" }, { status: 500 })
     }
 
     const updatedUser = updatedData[0]
@@ -158,7 +129,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       },
     })
   } catch (error: any) {
-    console.error("Unexpected error in PUT /api/users/[id]:", error)
+    console.error("Unexpected error in PUT:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },
@@ -173,7 +144,6 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     console.log("=== DELETE /api/users/[id] ===")
     console.log("Deleting user:", id)
 
-    // Initialize Supabase client with proper cookie handling
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -193,43 +163,26 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       },
     )
 
-    // First, check if the user exists
-    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id)
-
-    console.log("User exists check:", { existingUser, checkError })
-
-    if (checkError) {
-      console.error("Error checking existing user:", checkError)
-      return NextResponse.json({ error: `Failed to check user: ${checkError.message}` }, { status: 500 })
-    }
-
-    if (!existingUser || existingUser.length === 0) {
-      console.error("User not found for deletion:", id)
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    // Delete user profile from database first
+    // Delete from database first
     const { error: dbError } = await supabase.from("users").delete().eq("id", id)
 
     if (dbError) {
-      console.error(`Error deleting user with ID ${id} from database:`, dbError)
+      console.error("Database deletion error:", dbError)
       return NextResponse.json({ error: `Database deletion failed: ${dbError.message}` }, { status: 500 })
     }
 
-    // Delete user from Auth
+    // Delete from auth
     const { error: authError } = await supabase.auth.admin.deleteUser(id)
 
     if (authError) {
-      console.error(`Error deleting user with ID ${id} from Auth:`, authError)
-      // Don't return error here as the user is already deleted from database
-      console.log("User deleted from database but auth deletion failed - this is usually okay")
+      console.error("Auth deletion error:", authError)
+      // Don't fail the request if auth deletion fails
     }
 
-    console.log("User deleted successfully:", id)
-
+    console.log("User deleted successfully")
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error("Unexpected error in DELETE /api/users/[id]:", error)
+    console.error("Unexpected error in DELETE:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },
@@ -241,10 +194,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const id = params.id
 
-    console.log("=== GET /api/users/[id] ===")
-    console.log("Getting user:", id)
-
-    // Initialize Supabase client with proper cookie handling
     const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -266,15 +215,11 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
     const { data, error } = await supabase.from("users").select("*").eq("id", id)
 
-    console.log("Get user result:", { data, error })
-
     if (error) {
-      console.error(`Error fetching user with ID ${id}:`, error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     if (!data || data.length === 0) {
-      console.error("User not found:", id)
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
@@ -291,7 +236,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     })
   } catch (error: any) {
-    console.error("Unexpected error in GET /api/users/[id]:", error)
+    console.error("Unexpected error in GET:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },

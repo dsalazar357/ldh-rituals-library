@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -16,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Edit, Trash, AlertTriangle, Search, ArrowLeft, Loader2 } from "lucide-react"
+import { Edit, Trash, AlertTriangle, Search, ArrowLeft, Loader2, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/components/auth-provider"
 
@@ -39,12 +40,28 @@ export default function UsersAdminPage() {
   const [authError, setAuthError] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
+
+  // Edit user state
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  // Create user state
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [createFormData, setCreateFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    degree: "1",
+    lodge: "",
+    role: "user",
+  })
+
+  // Delete user state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isUpdating, setIsUpdating] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -62,61 +79,113 @@ export default function UsersAdminPage() {
       setError(null)
       setAuthError(false)
 
-      console.log("=== LOADING DATA ===")
-      console.log("Current user from auth context:", currentUser)
-
-      // Check if user is loaded and is admin
       if (!currentUser) {
-        console.log("No current user found")
         setAuthError(true)
         return
       }
-
-      console.log("User role:", currentUser.role)
 
       if (currentUser.role !== "admin") {
-        console.log("User is not admin:", currentUser.role)
         setAuthError(true)
         return
       }
 
-      console.log("User is admin, loading users...")
-
-      // Load users
       const usersResponse = await fetch("/api/users")
-      console.log("Users response status:", usersResponse.status)
 
       if (!usersResponse.ok) {
         const errorText = await usersResponse.text()
-        console.error("Error response:", errorText)
         setError(`Error al cargar los usuarios: ${usersResponse.status} - ${errorText}`)
         return
       }
 
       const usersData = await usersResponse.json()
-      console.log("Users data received:", usersData)
 
       if (usersData.users && Array.isArray(usersData.users)) {
         setUsers(usersData.users)
-        console.log("Set users from .users property:", usersData.users.length)
       } else if (Array.isArray(usersData)) {
         setUsers(usersData)
-        console.log("Set users from direct array:", usersData.length)
       } else {
-        console.error("Unexpected users data format:", usersData)
         setError("Formato de datos de usuarios inesperado")
       }
     } catch (err) {
-      console.error("Connection error:", err)
       setError("Error de conexión al cargar los datos")
     } finally {
       setLoading(false)
     }
   }
 
+  const handleCreateUser = async () => {
+    try {
+      setIsCreating(true)
+      setError(null)
+
+      console.log("Creating user with data:", createFormData)
+
+      const response = await fetch("/api/users/admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: createFormData.name,
+          email: createFormData.email,
+          password: createFormData.password || undefined,
+          degree: Number.parseInt(createFormData.degree),
+          lodge: createFormData.lodge || null,
+          role: createFormData.role,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error("Error creating user:", errorData)
+
+        let errorMessage = `Error al crear el usuario: ${response.status}`
+        try {
+          const parsedError = JSON.parse(errorData)
+          if (parsedError.error) {
+            errorMessage = parsedError.error
+          }
+        } catch {
+          errorMessage = errorData || errorMessage
+        }
+
+        setError(errorMessage)
+        return
+      }
+
+      const result = await response.json()
+      console.log("User created successfully:", result)
+
+      // Add the new user to the list
+      setUsers((prev) => [...prev, result.user])
+
+      // Reset form and close dialog
+      setCreateFormData({
+        name: "",
+        email: "",
+        password: "",
+        degree: "1",
+        lodge: "",
+        role: "user",
+      })
+      setIsCreateDialogOpen(false)
+
+      // Show success message if temporary password was generated
+      if (result.temporaryPassword) {
+        alert(
+          `Usuario creado exitosamente.\nContraseña temporal: ${result.temporaryPassword}\n\nPor favor, guarda esta contraseña ya que no se mostrará nuevamente.`,
+        )
+      }
+    } catch (err) {
+      console.error("Error creating user:", err)
+      setError("Error de conexión al crear el usuario")
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const handleEditUser = (user: User) => {
-    console.log("Editing user:", user)
-    setEditingUser({ ...user }) // Create a copy to avoid mutations
+    setEditingUser({ ...user })
     setIsEditDialogOpen(true)
   }
 
@@ -127,9 +196,7 @@ export default function UsersAdminPage() {
       setIsUpdating(true)
       setError(null)
 
-      console.log("=== UPDATING USER ===")
-      console.log("User ID:", editingUser.id)
-      console.log("Update data:", {
+      console.log("Updating user:", editingUser.id, "with data:", {
         role: editingUser.role,
         degree: editingUser.degree,
       })
@@ -145,8 +212,6 @@ export default function UsersAdminPage() {
         }),
       })
 
-      console.log("Update response status:", response.status)
-
       if (!response.ok) {
         const errorData = await response.text()
         console.error("Error updating user:", errorData)
@@ -158,7 +223,6 @@ export default function UsersAdminPage() {
             errorMessage = parsedError.error
           }
         } catch {
-          // If it's not JSON, use the raw text
           errorMessage = errorData || errorMessage
         }
 
@@ -172,13 +236,7 @@ export default function UsersAdminPage() {
       // Update the user in the local state
       setUsers((prev) =>
         prev.map((user) =>
-          user.id === editingUser.id
-            ? {
-                ...user,
-                role: editingUser.role,
-                degree: editingUser.degree,
-              }
-            : user,
+          user.id === editingUser.id ? { ...user, role: editingUser.role, degree: editingUser.degree } : user,
         ),
       )
 
@@ -197,14 +255,9 @@ export default function UsersAdminPage() {
       setIsDeleting(true)
       setError(null)
 
-      console.log("=== DELETING USER ===")
-      console.log("User ID:", userId)
-
       const response = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       })
-
-      console.log("Delete response status:", response.status)
 
       if (!response.ok) {
         const errorData = await response.text()
@@ -303,31 +356,14 @@ export default function UsersAdminPage() {
           <AlertTitle>Acceso Denegado</AlertTitle>
           <AlertDescription>
             No tienes permisos para acceder a esta área. Solo los administradores pueden gestionar usuarios.
-            {currentUser && (
-              <div className="mt-2 text-sm">
-                Usuario actual: {currentUser.name} ({currentUser.role || "sin rol"})
-              </div>
-            )}
-            {!currentUser && (
-              <div className="mt-2 text-sm">
-                No se pudo cargar la información del usuario. Por favor, inicia sesión nuevamente.
-              </div>
-            )}
           </AlertDescription>
         </Alert>
         <Card>
           <CardContent className="p-6">
-            <div className="text-center space-y-2">
+            <div className="text-center">
               <Button asChild>
                 <Link href="/admin">Volver al Panel de Administración</Link>
               </Button>
-              {!currentUser && (
-                <div>
-                  <Button variant="outline" asChild>
-                    <Link href="/login">Iniciar Sesión</Link>
-                  </Button>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -337,44 +373,25 @@ export default function UsersAdminPage() {
 
   return (
     <div className="space-y-6">
-      {/* Debug Info */}
-      {process.env.NODE_ENV === "development" && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-blue-800">Debug Info</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-blue-700">
-            <div>
-              Usuario: {currentUser.name} ({currentUser.email})
-            </div>
-            <div>Rol: {currentUser.role}</div>
-            <div>ID: {currentUser.id}</div>
-            <div>Usuarios cargados: {users.length}</div>
-            {editingUser && (
-              <div className="mt-2 p-2 bg-blue-100 rounded">
-                <div>Editando: {editingUser.name}</div>
-                <div>ID: {editingUser.id}</div>
-                <div>Rol actual: {editingUser.role}</div>
-                <div>Grado actual: {editingUser.degree}</div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/admin">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold">Administración de Usuarios</h1>
-          <p className="text-muted-foreground">
-            Gestiona los usuarios de la plataforma - Conectado como: {currentUser.name} ({currentUser.role})
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold">Administración de Usuarios</h1>
+            <p className="text-muted-foreground">
+              Gestiona los usuarios de la plataforma - Conectado como: {currentUser.name} ({currentUser.role})
+            </p>
+          </div>
         </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Crear Usuario
+        </Button>
       </div>
 
       {/* Error Alert */}
@@ -503,6 +520,112 @@ export default function UsersAdminPage() {
         </CardContent>
       </Card>
 
+      {/* Create User Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+            <DialogDescription>Completa la información para crear un nuevo usuario en el sistema.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-name">Nombre Completo *</Label>
+              <Input
+                id="create-name"
+                value={createFormData.name}
+                onChange={(e) => setCreateFormData({ ...createFormData, name: e.target.value })}
+                placeholder="Nombre completo del usuario"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-email">Email *</Label>
+              <Input
+                id="create-email"
+                type="email"
+                value={createFormData.email}
+                onChange={(e) => setCreateFormData({ ...createFormData, email: e.target.value })}
+                placeholder="email@ejemplo.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-password">Contraseña</Label>
+              <Input
+                id="create-password"
+                type="password"
+                value={createFormData.password}
+                onChange={(e) => setCreateFormData({ ...createFormData, password: e.target.value })}
+                placeholder="Dejar vacío para generar automáticamente"
+              />
+              <p className="text-xs text-muted-foreground">
+                Si se deja vacío, se generará una contraseña temporal automáticamente.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-role">Rol</Label>
+              <Select
+                value={createFormData.role}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, role: value })}
+              >
+                <SelectTrigger id="create-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">Usuario</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-degree">Grado</Label>
+              <Select
+                value={createFormData.degree}
+                onValueChange={(value) => setCreateFormData({ ...createFormData, degree: value })}
+              >
+                <SelectTrigger id="create-degree">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Grado 1</SelectItem>
+                  <SelectItem value="2">Grado 2</SelectItem>
+                  <SelectItem value="3">Grado 3</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-lodge">Logia</Label>
+              <Input
+                id="create-lodge"
+                value={createFormData.lodge}
+                onChange={(e) => setCreateFormData({ ...createFormData, lodge: e.target.value })}
+                placeholder="Nombre de la logia (opcional)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCreateDialogOpen(false)
+                setCreateFormData({
+                  name: "",
+                  email: "",
+                  password: "",
+                  degree: "1",
+                  lodge: "",
+                  role: "user",
+                })
+              }}
+              disabled={isCreating}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateUser} disabled={isCreating || !createFormData.name || !createFormData.email}>
+              {isCreating ? "Creando..." : "Crear Usuario"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
@@ -513,7 +636,7 @@ export default function UsersAdminPage() {
           {editingUser && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Rol</label>
+                <Label>Rol</Label>
                 <Select
                   value={editingUser.role}
                   onValueChange={(value) => setEditingUser({ ...editingUser, role: value })}
@@ -528,7 +651,7 @@ export default function UsersAdminPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Grado</label>
+                <Label>Grado</Label>
                 <Select
                   value={editingUser.degree.toString()}
                   onValueChange={(value) => setEditingUser({ ...editingUser, degree: Number.parseInt(value) })}
