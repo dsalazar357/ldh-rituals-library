@@ -10,6 +10,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     console.log("=== PUT /api/users/[id] ===")
     console.log("User ID:", id)
+    console.log("User ID type:", typeof id)
+    console.log("User ID length:", id.length)
     console.log("Update data:", userData)
 
     // Initialize Supabase client with proper cookie handling
@@ -32,20 +34,29 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       },
     )
 
-    // First, check if the user exists
-    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id).limit(1)
+    // First, check if the user exists and get current data
+    const { data: existingUsers, error: checkError } = await supabase.from("users").select("*").eq("id", id)
 
-    console.log("Existing user check:", existingUser, checkError)
+    console.log("Existing users query result:", { existingUsers, checkError })
+    console.log("Number of existing users found:", existingUsers?.length || 0)
 
     if (checkError) {
       console.error("Error checking existing user:", checkError)
       return NextResponse.json({ error: `Failed to check user: ${checkError.message}` }, { status: 500 })
     }
 
-    if (!existingUser || existingUser.length === 0) {
+    if (!existingUsers || existingUsers.length === 0) {
       console.error("User not found:", id)
+
+      // Let's also try to find users with similar IDs for debugging
+      const { data: allUsers } = await supabase.from("users").select("id, name, email").limit(10)
+      console.log("All users in database (first 10):", allUsers)
+
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
+
+    const existingUser = existingUsers[0]
+    console.log("Found existing user:", existingUser)
 
     // Update auth data if email or password is provided
     if (userData.email || userData.password) {
@@ -63,37 +74,77 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       }
     }
 
-    // Update user profile in database
+    // Prepare update data - only include fields that are actually changing
     const updateData: any = {}
-    if (userData.name !== undefined) updateData.name = userData.name
-    if (userData.email !== undefined) updateData.email = userData.email
-    if (userData.degree !== undefined) updateData.degree = userData.degree
-    if (userData.lodge !== undefined) updateData.lodge = userData.lodge
-    if (userData.role !== undefined) updateData.role = userData.role
 
-    console.log("Updating database with:", updateData)
-
-    // Use update without .single() first to see how many rows are affected
-    const { data, error, count } = await supabase.from("users").update(updateData).eq("id", id).select()
-
-    console.log("Update result:", { data, error, count })
-
-    if (error) {
-      console.error(`Error updating user with ID ${id}:`, error)
-      return NextResponse.json({ error: `Database update failed: ${error.message}` }, { status: 500 })
+    if (userData.name !== undefined && userData.name !== existingUser.name) {
+      updateData.name = userData.name
+    }
+    if (userData.email !== undefined && userData.email !== existingUser.email) {
+      updateData.email = userData.email
+    }
+    if (userData.degree !== undefined && userData.degree !== existingUser.degree) {
+      updateData.degree = userData.degree
+    }
+    if (userData.lodge !== undefined && userData.lodge !== existingUser.lodge) {
+      updateData.lodge = userData.lodge
+    }
+    if (userData.role !== undefined && userData.role !== existingUser.role) {
+      updateData.role = userData.role
     }
 
-    if (!data || data.length === 0) {
+    console.log("Final update data (only changed fields):", updateData)
+
+    // If no fields are changing, return the existing user
+    if (Object.keys(updateData).length === 0) {
+      console.log("No fields to update, returning existing user")
+      return NextResponse.json({
+        user: {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          degree: existingUser.degree,
+          lodge: existingUser.lodge,
+          role: existingUser.role,
+        },
+      })
+    }
+
+    // Add updated_at timestamp
+    updateData.updated_at = new Date().toISOString()
+
+    console.log("Executing update query...")
+
+    // Perform the update
+    const { data: updatedData, error: updateError } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", id)
+      .select("*")
+
+    console.log("Update query result:", { updatedData, updateError })
+
+    if (updateError) {
+      console.error(`Error updating user with ID ${id}:`, updateError)
+      return NextResponse.json({ error: `Database update failed: ${updateError.message}` }, { status: 500 })
+    }
+
+    if (!updatedData || updatedData.length === 0) {
       console.error("No rows updated for user:", id)
-      return NextResponse.json({ error: "No user was updated" }, { status: 404 })
+
+      // Try to fetch the user again to see if it still exists
+      const { data: recheckUser } = await supabase.from("users").select("*").eq("id", id)
+      console.log("User recheck after failed update:", recheckUser)
+
+      return NextResponse.json({ error: "No user was updated - user may have been deleted" }, { status: 404 })
     }
 
-    if (data.length > 1) {
-      console.error("Multiple rows updated for user:", id, data.length)
+    if (updatedData.length > 1) {
+      console.error("Multiple rows updated for user:", id, updatedData.length)
       return NextResponse.json({ error: "Multiple users updated - data integrity issue" }, { status: 500 })
     }
 
-    const updatedUser = data[0]
+    const updatedUser = updatedData[0]
     console.log("User updated successfully:", updatedUser)
 
     return NextResponse.json({
@@ -143,7 +194,9 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     )
 
     // First, check if the user exists
-    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id).limit(1)
+    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id)
+
+    console.log("User exists check:", { existingUser, checkError })
 
     if (checkError) {
       console.error("Error checking existing user:", checkError)
@@ -211,7 +264,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     )
 
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).limit(1)
+    const { data, error } = await supabase.from("users").select("*").eq("id", id)
+
+    console.log("Get user result:", { data, error })
 
     if (error) {
       console.error(`Error fetching user with ID ${id}:`, error)

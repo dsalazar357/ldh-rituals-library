@@ -115,7 +115,8 @@ export default function UsersAdminPage() {
   }
 
   const handleEditUser = (user: User) => {
-    setEditingUser(user)
+    console.log("Editing user:", user)
+    setEditingUser({ ...user }) // Create a copy to avoid mutations
     setIsEditDialogOpen(true)
   }
 
@@ -125,6 +126,13 @@ export default function UsersAdminPage() {
     try {
       setIsUpdating(true)
       setError(null)
+
+      console.log("=== UPDATING USER ===")
+      console.log("User ID:", editingUser.id)
+      console.log("Update data:", {
+        role: editingUser.role,
+        degree: editingUser.degree,
+      })
 
       const response = await fetch(`/api/users/${editingUser.id}`, {
         method: "PUT",
@@ -137,21 +145,43 @@ export default function UsersAdminPage() {
         }),
       })
 
+      console.log("Update response status:", response.status)
+
       if (!response.ok) {
         const errorData = await response.text()
         console.error("Error updating user:", errorData)
-        setError(`Error al actualizar el usuario: ${response.status}`)
+
+        let errorMessage = `Error al actualizar el usuario: ${response.status}`
+        try {
+          const parsedError = JSON.parse(errorData)
+          if (parsedError.error) {
+            errorMessage = parsedError.error
+          }
+        } catch {
+          // If it's not JSON, use the raw text
+          errorMessage = errorData || errorMessage
+        }
+
+        setError(errorMessage)
         return
       }
 
       const updatedData = await response.json()
-      console.log("User updated:", updatedData)
+      console.log("User updated successfully:", updatedData)
 
+      // Update the user in the local state
       setUsers((prev) =>
         prev.map((user) =>
-          user.id === editingUser.id ? { ...user, role: editingUser.role, degree: editingUser.degree } : user,
+          user.id === editingUser.id
+            ? {
+                ...user,
+                role: editingUser.role,
+                degree: editingUser.degree,
+              }
+            : user,
         ),
       )
+
       setIsEditDialogOpen(false)
       setEditingUser(null)
     } catch (err) {
@@ -167,9 +197,14 @@ export default function UsersAdminPage() {
       setIsDeleting(true)
       setError(null)
 
+      console.log("=== DELETING USER ===")
+      console.log("User ID:", userId)
+
       const response = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       })
+
+      console.log("Delete response status:", response.status)
 
       if (!response.ok) {
         const errorData = await response.text()
@@ -315,6 +350,14 @@ export default function UsersAdminPage() {
             <div>Rol: {currentUser.role}</div>
             <div>ID: {currentUser.id}</div>
             <div>Usuarios cargados: {users.length}</div>
+            {editingUser && (
+              <div className="mt-2 p-2 bg-blue-100 rounded">
+                <div>Editando: {editingUser.name}</div>
+                <div>ID: {editingUser.id}</div>
+                <div>Rol actual: {editingUser.role}</div>
+                <div>Grado actual: {editingUser.degree}</div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
