@@ -8,8 +8,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const id = params.id
     const userData = await request.json()
 
-    // Inicializar el cliente de Supabase con las opciones de cookies correctas
-    const cookieStore = cookies()
+    console.log("Updating user:", id, "with data:", userData)
+
+    // Initialize Supabase client with proper cookie handling
+    const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -18,10 +20,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+          set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options })
           },
-          remove(name: string, options: { path: string; domain?: string }) {
+          remove(name: string, options: any) {
             cookieStore.set({ name, value: "", ...options, maxAge: 0 })
           },
         },
@@ -34,28 +36,34 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       if (userData.email) updateData.email = userData.email
       if (userData.password) updateData.password = userData.password
 
+      console.log("Updating auth data:", updateData)
+
       const { error: authError } = await supabase.auth.admin.updateUserById(id, updateData)
 
       if (authError) {
         console.error("Error updating user auth data:", authError)
-        return NextResponse.json({ error: authError.message }, { status: 500 })
+        return NextResponse.json({ error: `Auth update failed: ${authError.message}` }, { status: 500 })
       }
     }
 
     // Update user profile in database
     const updateData: any = {}
-    if (userData.name) updateData.name = userData.name
-    if (userData.email) updateData.email = userData.email
-    if (userData.degree) updateData.degree = userData.degree
+    if (userData.name !== undefined) updateData.name = userData.name
+    if (userData.email !== undefined) updateData.email = userData.email
+    if (userData.degree !== undefined) updateData.degree = userData.degree
     if (userData.lodge !== undefined) updateData.lodge = userData.lodge
-    if (userData.role) updateData.role = userData.role
+    if (userData.role !== undefined) updateData.role = userData.role
+
+    console.log("Updating database with:", updateData)
 
     const { data, error } = await supabase.from("users").update(updateData).eq("id", id).select().single()
 
     if (error) {
       console.error(`Error updating user with ID ${id}:`, error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: `Database update failed: ${error.message}` }, { status: 500 })
     }
+
+    console.log("User updated successfully:", data)
 
     return NextResponse.json({
       user: {
@@ -68,7 +76,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       },
     })
   } catch (error: any) {
-    console.error("Unexpected error:", error)
+    console.error("Unexpected error in PUT /api/users/[id]:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },
@@ -80,8 +88,10 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const id = params.id
 
-    // Inicializar el cliente de Supabase con las opciones de cookies correctas
-    const cookieStore = cookies()
+    console.log("Deleting user:", id)
+
+    // Initialize Supabase client with proper cookie handling
+    const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -90,10 +100,10 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+          set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options })
           },
-          remove(name: string, options: { path: string; domain?: string }) {
+          remove(name: string, options: any) {
             cookieStore.set({ name, value: "", ...options, maxAge: 0 })
           },
         },
@@ -105,7 +115,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     if (authError) {
       console.error(`Error deleting user with ID ${id} from Auth:`, authError)
-      return NextResponse.json({ error: authError.message }, { status: 500 })
+      return NextResponse.json({ error: `Auth deletion failed: ${authError.message}` }, { status: 500 })
     }
 
     // Delete user profile from database
@@ -113,12 +123,14 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     if (error) {
       console.error(`Error deleting user with ID ${id} from database:`, error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: `Database deletion failed: ${error.message}` }, { status: 500 })
     }
+
+    console.log("User deleted successfully:", id)
 
     return NextResponse.json({ success: true })
   } catch (error: any) {
-    console.error("Unexpected error:", error)
+    console.error("Unexpected error in DELETE /api/users/[id]:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },
@@ -130,8 +142,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const id = params.id
 
-    // Inicializar el cliente de Supabase con las opciones de cookies correctas
-    const cookieStore = cookies()
+    console.log("Getting user:", id)
+
+    // Initialize Supabase client with proper cookie handling
+    const cookieStore = await cookies()
     const supabase = createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -140,10 +154,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
           get(name: string) {
             return cookieStore.get(name)?.value
           },
-          set(name: string, value: string, options: { path: string; maxAge: number; domain?: string }) {
+          set(name: string, value: string, options: any) {
             cookieStore.set({ name, value, ...options })
           },
-          remove(name: string, options: { path: string; domain?: string }) {
+          remove(name: string, options: any) {
             cookieStore.set({ name, value: "", ...options, maxAge: 0 })
           },
         },
@@ -168,7 +182,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     })
   } catch (error: any) {
-    console.error("Unexpected error:", error)
+    console.error("Unexpected error in GET /api/users/[id]:", error)
     return NextResponse.json(
       { error: `An unexpected error occurred: ${error?.message || "Unknown error"}` },
       { status: 500 },
