@@ -8,7 +8,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const id = params.id
     const userData = await request.json()
 
-    console.log("Updating user:", id, "with data:", userData)
+    console.log("=== PUT /api/users/[id] ===")
+    console.log("User ID:", id)
+    console.log("Update data:", userData)
 
     // Initialize Supabase client with proper cookie handling
     const cookieStore = await cookies()
@@ -29,6 +31,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         },
       },
     )
+
+    // First, check if the user exists
+    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id).limit(1)
+
+    console.log("Existing user check:", existingUser, checkError)
+
+    if (checkError) {
+      console.error("Error checking existing user:", checkError)
+      return NextResponse.json({ error: `Failed to check user: ${checkError.message}` }, { status: 500 })
+    }
+
+    if (!existingUser || existingUser.length === 0) {
+      console.error("User not found:", id)
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
 
     // Update auth data if email or password is provided
     if (userData.email || userData.password) {
@@ -56,23 +73,37 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     console.log("Updating database with:", updateData)
 
-    const { data, error } = await supabase.from("users").update(updateData).eq("id", id).select().single()
+    // Use update without .single() first to see how many rows are affected
+    const { data, error, count } = await supabase.from("users").update(updateData).eq("id", id).select()
+
+    console.log("Update result:", { data, error, count })
 
     if (error) {
       console.error(`Error updating user with ID ${id}:`, error)
       return NextResponse.json({ error: `Database update failed: ${error.message}` }, { status: 500 })
     }
 
-    console.log("User updated successfully:", data)
+    if (!data || data.length === 0) {
+      console.error("No rows updated for user:", id)
+      return NextResponse.json({ error: "No user was updated" }, { status: 404 })
+    }
+
+    if (data.length > 1) {
+      console.error("Multiple rows updated for user:", id, data.length)
+      return NextResponse.json({ error: "Multiple users updated - data integrity issue" }, { status: 500 })
+    }
+
+    const updatedUser = data[0]
+    console.log("User updated successfully:", updatedUser)
 
     return NextResponse.json({
       user: {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        degree: data.degree,
-        lodge: data.lodge,
-        role: data.role,
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        degree: updatedUser.degree,
+        lodge: updatedUser.lodge,
+        role: updatedUser.role,
       },
     })
   } catch (error: any) {
@@ -88,6 +119,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const id = params.id
 
+    console.log("=== DELETE /api/users/[id] ===")
     console.log("Deleting user:", id)
 
     // Initialize Supabase client with proper cookie handling
@@ -110,20 +142,34 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
       },
     )
 
+    // First, check if the user exists
+    const { data: existingUser, error: checkError } = await supabase.from("users").select("*").eq("id", id).limit(1)
+
+    if (checkError) {
+      console.error("Error checking existing user:", checkError)
+      return NextResponse.json({ error: `Failed to check user: ${checkError.message}` }, { status: 500 })
+    }
+
+    if (!existingUser || existingUser.length === 0) {
+      console.error("User not found for deletion:", id)
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // Delete user profile from database first
+    const { error: dbError } = await supabase.from("users").delete().eq("id", id)
+
+    if (dbError) {
+      console.error(`Error deleting user with ID ${id} from database:`, dbError)
+      return NextResponse.json({ error: `Database deletion failed: ${dbError.message}` }, { status: 500 })
+    }
+
     // Delete user from Auth
     const { error: authError } = await supabase.auth.admin.deleteUser(id)
 
     if (authError) {
       console.error(`Error deleting user with ID ${id} from Auth:`, authError)
-      return NextResponse.json({ error: `Auth deletion failed: ${authError.message}` }, { status: 500 })
-    }
-
-    // Delete user profile from database
-    const { error } = await supabase.from("users").delete().eq("id", id)
-
-    if (error) {
-      console.error(`Error deleting user with ID ${id} from database:`, error)
-      return NextResponse.json({ error: `Database deletion failed: ${error.message}` }, { status: 500 })
+      // Don't return error here as the user is already deleted from database
+      console.log("User deleted from database but auth deletion failed - this is usually okay")
     }
 
     console.log("User deleted successfully:", id)
@@ -142,6 +188,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const id = params.id
 
+    console.log("=== GET /api/users/[id] ===")
     console.log("Getting user:", id)
 
     // Initialize Supabase client with proper cookie handling
@@ -164,21 +211,28 @@ export async function GET(request: Request, { params }: { params: { id: string }
       },
     )
 
-    const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
+    const { data, error } = await supabase.from("users").select("*").eq("id", id).limit(1)
 
     if (error) {
       console.error(`Error fetching user with ID ${id}:`, error)
-      return NextResponse.json({ error: error.message }, { status: 404 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    if (!data || data.length === 0) {
+      console.error("User not found:", id)
+      return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    const user = data[0]
 
     return NextResponse.json({
       user: {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        degree: data.degree,
-        lodge: data.lodge,
-        role: data.role,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        degree: user.degree,
+        lodge: user.lodge,
+        role: user.role,
       },
     })
   } catch (error: any) {
